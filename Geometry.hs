@@ -1,11 +1,15 @@
 module Geometry where
+import Graphics.Gloss.Data.Point
+import Graphics.Gloss.Data.Vector
 
-type Vector2 = (Float, Float)
-type Location = Vector2
-type Movement = Vector2
-
-add :: Vector2 -> Vector2 -> Vector2
+add :: Vector -> Vector -> Vector
 add (xA, yA) (xB, yB) = (xA + xB, yA + yB)
 
-lerp :: Vector2 -> Vector2 -> Float -> Vector2
+lerp :: Vector -> Vector -> Float -> Vector
 lerp (xA, yA) (xB, yB) percent = ((xB - xA) * percent, (yB - yA) * percent)
+
+difference :: Point -> Point -> Vector
+difference (xA, yA) (xB, yB) = (xA - xB, yA - yB)
+
+distance :: Point -> Point -> Float
+distance pA pB = magV $ difference pA pB

@@ -3,11 +3,14 @@ import System.Random (randomIO)
 import Graphics.Gloss
 import Geometry
 
-data Plant = Plant Type Location 
+type PlantID = Int
+data Plant = Plant Type Point 
     deriving (Show, Eq)
 
 data Type = Food Float
     deriving (Show, Eq)
+
+plantLocation (Plant plantType location) = location
 
 randomPlant :: (Int, Int) -> IO Plant
 randomPlant (fieldWidth, fieldHeight) = do
@@ -15,5 +18,8 @@ randomPlant (fieldWidth, fieldHeight) = do
     yUnscaled <- randomIO :: IO Float
     let x = (fromIntegral fieldWidth) * xUnscaled
     let y = (fromIntegral fieldHeight) * yUnscaled
-    foodAmount <- randomIO :: IO Float
-    return $ Plant (Food foodAmount) (x, y)
+    let offsetX = - fromIntegral fieldWidth / 2
+    let offsetY = - fromIntegral fieldHeight / 2
+    randomFoodAmount <- randomIO :: IO Float
+    let foodAmount = 0.4 + 0.6 * randomFoodAmount
+    return $ Plant (Food foodAmount) (x + offsetX, y + offsetY)
