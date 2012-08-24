@@ -9,5 +9,5 @@ data World = World { worldField         :: Field
                    , worldMouseLocation :: Point
                    }
 
-initialWorld :: Field -> World
-initialWorld field = World { worldField = field, worldFeeders = initialFeeders field, worldMouseLocation = (0, 0) }
+initialWorld :: Field -> Feeders -> World
+initialWorld field feeders = World { worldField = field, worldFeeders = feeders, worldMouseLocation = (0, 0) }

@@ -12,7 +12,8 @@ main = do
     let width = 1680
     let height = 1050
     field <- randomField (width, height)
-    play (FullScreen (1680, 1050)) (light black) 60 (initialWorld field) drawWorld handleEvent iterateWorld
+    feeders <- randomFeeders 100 field
+    play (FullScreen (1680, 1050)) (light black) 60 (initialWorld field feeders) drawWorld handleEvent iterateWorld
 
 drawWorld :: World -> Picture
 drawWorld world = Pictures [drawField (worldField world), drawFeeders (worldFeeders world)]

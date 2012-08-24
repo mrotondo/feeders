@@ -6,6 +6,8 @@ import Plant
 import Geometry
 import Math
 import qualified Data.Map as Map
+import Control.Monad (replicateM)
+import System.Random (randomIO)
 import Data.List (minimumBy)
 
 type Feeders = [Feeder]
@@ -22,9 +24,23 @@ newFeeder field loc = Feeder { feederLocation = loc
                              , feederTargetPlantID = closestPlantID field loc
                              }
 
+randomFeeders :: Int -> Field -> IO Feeders
+randomFeeders numFeeders field = do
+    xs <- replicateM numFeeders (randomIO :: IO Float)
+    ys <- replicateM numFeeders (randomIO :: IO Float)
+    let width = fromIntegral $ fieldWidth field
+    let height = fromIntegral $ fieldHeight field
+    let scaleX = ((-) (width / 2)) . ((*) width)
+    let scaleY = ((-) (height / 2)) . ((*) height)
+    let scaledXs = map scaleX xs
+    let scaledYs = map scaleY ys
+    let locations = zip scaledXs scaledYs
+    return $ map (newFeeder field) locations
+
 initialFeeders :: Field -> Feeders
 initialFeeders field = map (newFeeder field) [(0, 0), (100, 100), (200, 200), (300, 300), (400, 400)]
 
+-- TODO: Add uniquing, so multiple feeders don't go to the same plant, or randomness, so they split up afterwards
 closestPlantID :: Field -> Point -> PlantID
 closestPlantID field feederLoc = fst $ minimumBy comparePlantDistances (Map.toList (fieldPlants field))
   where
@@ -70,7 +86,7 @@ getHungrier :: Effect
 getHungrier field seconds feeder = (feeder { feederFood = clamp 0.0 1.0 newFeederFood }, field)
   where
     oldFeederFood = (feederFood feeder)
-    hungerPerSecond = 0.13
+    hungerPerSecond = 0.17
     newHunger = hungerPerSecond * seconds
     newFeederFood = oldFeederFood - newHunger
 
@@ -86,7 +102,7 @@ maybeEat :: Effect
 maybeEat field seconds feeder = (feeder { feederFood = clamp 0.0 1.0 newFeederFood, feederTargetPlantID = newTargetPlantID }, newField)
   where
     oldFeederFood = (feederFood feeder)
-    foodEatenPerSecond = 0.17
+    foodEatenPerSecond = 0.25
     foodEaten = case (distanceToTargetPlant field feeder) of
                   dist | dist < 2.5  -> (foodEatenPerSecond * seconds)
                   _                  -> 0

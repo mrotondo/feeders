@@ -18,7 +18,7 @@ randomField :: (Int, Int) -> IO Field
 randomField (width, height) = do
     randomPlantPercent <- randomIO :: IO Float
     let plantPercent = 0.3 + 0.7 * randomPlantPercent
-    let maxNumPlants = 0.001 * (fromIntegral width) * (fromIntegral height)
+    let maxNumPlants = 0.003 * (fromIntegral width) * (fromIntegral height)
     let numPlants = floor $ plantPercent * maxNumPlants
     putStrLn $ "This many plants: " ++ (show numPlants)
     plants <- replicateM numPlants (randomPlant (width, height))
