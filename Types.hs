@@ -1,6 +1,8 @@
 module Types where
 import Graphics.Gloss
 import Data.Map
+import Geometry
+import System.Random (StdGen)
 
 data AppState = AppState World Point
 
@@ -13,10 +15,12 @@ data Feeder = Feeder { feederLocation       :: Point
                      , feederTargetPlantID  :: PlantID
                      }
 
-data Field = Field { fieldPlants    :: Map PlantID Plant
-                   , fieldWidth     :: Int 
-                   , fieldHeight    :: Int
-                   , nextPlantID    :: PlantID
+data Field = Field { fieldPlants            :: Map PlantID Plant
+                   , fieldWidth             :: Int 
+                   , fieldHeight            :: Int
+                   , fieldNextPlantID       :: PlantID
+                   , fieldNumberOfPlants    :: Int
+                   , fieldRandomGen         :: StdGen 
                    }
 
 type PlantID = Int

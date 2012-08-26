@@ -34,7 +34,6 @@ randomFeeders numFeeders field = do
 initialFeeders :: Field -> Feeders
 initialFeeders field = map (newFeeder field) [(0, 0), (100, 100), (200, 200), (300, 300), (400, 400)]
 
--- TODO: Add uniquing, so multiple feeders don't go to the same plant, or randomness, so they split up afterwards
 closestPlantID :: Field -> Point -> PlantID
 closestPlantID field feederLoc = fst $ minimumBy comparePlantDistances (Map.toList (fieldPlants field))
   where
@@ -97,9 +96,7 @@ maybeEat field seconds feeder = (feeder { feederFood = clamp 0.0 1.0 newFeederFo
   where
     oldFeederFood = (feederFood feeder)
     foodEatenPerSecond = 0.25
-    foodEaten = case (distanceToTargetPlant field feeder) of
-                  dist | dist < 2.5  -> (foodEatenPerSecond * seconds)
-                  _                  -> 0
+    foodEaten = if (distanceToTargetPlant field feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
     newFeederFood = oldFeederFood + foodEaten
     newPlant = case (targetPlant field feeder) of
                  Just (Plant (Food amount) location) -> Plant (Food $ clamp 0.0 1.0 (amount - foodEaten)) location

@@ -1,19 +1,19 @@
 module Plant where
-import System.Random (randomIO)
+import System.Random (RandomGen, random)
 import Graphics.Gloss
 import Types
 import Geometry
 
 plantLocation (Plant plantType location) = location
 
-randomPlant :: (Int, Int) -> IO Plant
-randomPlant (fieldWidth, fieldHeight) = do
-    xUnscaled <- randomIO :: IO Float
-    yUnscaled <- randomIO :: IO Float
-    let x = (fromIntegral fieldWidth) * xUnscaled
-    let y = (fromIntegral fieldHeight) * yUnscaled
-    let offsetX = - fromIntegral fieldWidth / 2
-    let offsetY = - fromIntegral fieldHeight / 2
-    randomFoodAmount <- randomIO :: IO Float
-    let foodAmount = 0.4 + 0.6 * randomFoodAmount
-    return $ Plant (Food foodAmount) (x + offsetX, y + offsetY)
+randomPlant :: RandomGen g => g -> (Int, Int) -> (Plant, g)
+randomPlant gen (width, height) = let
+    (xUnscaled, gen') = random gen
+    (yUnscaled, gen'') = random gen'
+    x = (fromIntegral width) * xUnscaled
+    y = (fromIntegral height) * yUnscaled
+    offsetX = - fromIntegral width / 2
+    offsetY = - fromIntegral height / 2
+    (randomFoodAmount, gen''') = random gen''
+    foodAmount = 0.4 + 0.6 * randomFoodAmount
+    in (Plant (Food foodAmount) (x + offsetX, y + offsetY), gen''')
