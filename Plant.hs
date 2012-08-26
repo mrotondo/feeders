@@ -1,14 +1,8 @@
 module Plant where
 import System.Random (randomIO)
 import Graphics.Gloss
+import Types
 import Geometry
-
-type PlantID = Int
-data Plant = Plant Type Point 
-    deriving (Show, Eq)
-
-data Type = Food Float
-    deriving (Show, Eq)
 
 plantLocation (Plant plantType location) = location
 

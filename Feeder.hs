@@ -1,6 +1,7 @@
 module Feeder where
 import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
+import Types
 import Field
 import Plant
 import Geometry
@@ -9,13 +10,6 @@ import qualified Data.Map as Map
 import Control.Monad (replicateM)
 import System.Random (randomIO)
 import Data.List (minimumBy)
-
-type Feeders = [Feeder]
-data Feeder = Feeder { feederLocation       :: Point
-                     , feederFood           :: Float
-                     , feederWater          :: Float
-                     , feederTargetPlantID  :: PlantID
-                     }
 
 newFeeder :: Field -> Point -> Feeder
 newFeeder field loc = Feeder { feederLocation = loc
