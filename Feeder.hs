@@ -9,7 +9,8 @@ import Math
 import qualified Data.Map as Map
 import Control.Monad (replicateM)
 import System.Random (randomIO)
-import Data.List (minimumBy)
+import Data.List (minimumBy, sortBy)
+import Data.Function (on)
 
 newFeeder :: Field -> Point -> Feeder
 newFeeder field loc = Feeder { feederLocation = loc
@@ -64,48 +65,79 @@ moveTowardsLocation targetLocation seconds feeder = feeder { feederLocation=oldL
 moveBy :: Point -> Vector -> Point
 moveBy = add
 
-moveFeeder :: Field -> Float -> Feeder -> Feeder
-moveFeeder field seconds feeder = moveTowardsLocation (targetPlantLocation field feeder) seconds feeder
+type Urgency = Float
+type DesireArgs = (World, Feeder) -- (packed for passing via (map $)) previous world state, feeder being operated on
+type Desire = DesireArgs -> (Urgency, Behavior)
+type Behavior = [Action]
 
-iterateFeeder :: Field -> Float -> Feeder -> (Feeder, Field)
-iterateFeeder field seconds feeder = foldl (\(feederAccum, fieldAccum) effect -> effect field seconds feederAccum) (feeder, field) lifeEffects
+-- previous world state, current field (as modified by tick thus far), feeder being operated on
+type Action = World -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
 
-type Effect = Field -> Float -> Feeder -> (Feeder, Field)
+iterateFeeder :: World -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
+iterateFeeder previousWorld fieldSoFar feeder seconds = let
+    urgencyBehaviorTuples = generatePossibleBehaviors previousWorld feeder
+  in 
+    doMostUrgentBehavior previousWorld fieldSoFar feeder seconds urgencyBehaviorTuples
 
-lifeEffects :: [Effect]
-lifeEffects = [getHungrier, getThirstier, maybeEat]--, maybeDrink]
+doMostUrgentBehavior :: World -> Field -> Feeder -> TimeInterval -> [(Urgency, Behavior)] -> (Feeder, Field)
+doMostUrgentBehavior previousWorld fieldSoFar feeder seconds urgencyBehaviorTuples = let
+    mostUrgentBehavior = snd . head $ sortBy (compare `on` fst) $ urgencyBehaviorTuples
+  in
+    doBehavior previousWorld fieldSoFar feeder seconds mostUrgentBehavior
 
-getHungrier :: Effect
-getHungrier field seconds feeder = (feeder { feederFood = clamp 0.0 1.0 newFeederFood }, field)
+doBehavior ::  World -> Field -> Feeder -> TimeInterval -> Behavior -> (Feeder, Field)
+doBehavior previousWorld fieldSoFar feeder seconds behavior = foldr (\action (feederAccum, fieldAccum) ->
+    action previousWorld fieldAccum feederAccum seconds) (feeder, fieldSoFar) behavior
+
+generatePossibleBehaviors :: World -> Feeder -> [(Urgency, Behavior)]
+generatePossibleBehaviors previousWorld feeder = map ($ (previousWorld, feeder)) desires 
+
+desires :: [Desire]
+desires = [hunger]--, thirst]
+
+hunger :: Desire
+hunger desireArgs@(previousWorld, feeder) = (foodUrgency feeder, [getHungrier, moveToFood, eatFood])
+
+foodUrgency :: Feeder -> Urgency
+foodUrgency feeder = (1.0 - (feederFood feeder)) ^ 2
+
+getHungrier :: Action
+getHungrier previousWorld fieldSoFar feeder seconds = (feeder { feederFood = clamp 0.0 1.0 newFeederFood }, fieldSoFar)
   where
     oldFeederFood = (feederFood feeder)
     hungerPerSecond = 0.17
     newHunger = hungerPerSecond * seconds
     newFeederFood = oldFeederFood - newHunger
 
-getThirstier :: Effect
-getThirstier field seconds feeder = (feeder { feederWater = clamp 0.0 1.0 newFeederWater }, field)
-  where
-    oldFeederWater = (feederWater feeder)
-    thirstPerSecond = 0.1
-    newThirst = thirstPerSecond * seconds
-    newFeederWater = oldFeederWater - newThirst
+moveToFood :: Action
+moveToFood previousWorld fieldSoFar feeder seconds = let
+    movedFeeder = moveTowardsLocation (targetPlantLocation fieldSoFar feeder) seconds feeder
+  in
+    (movedFeeder, fieldSoFar)
 
-maybeEat :: Effect
-maybeEat field seconds feeder = (feeder { feederFood = clamp 0.0 1.0 newFeederFood, feederTargetPlantID = newTargetPlantID }, newField)
-  where
+eatFood :: Action
+eatFood previousWorld fieldSoFar feeder seconds = let
     oldFeederFood = (feederFood feeder)
     foodEatenPerSecond = 0.25
-    foodEaten = if (distanceToTargetPlant field feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
+    foodEaten = if (distanceToTargetPlant fieldSoFar feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
     newFeederFood = oldFeederFood + foodEaten
-    newPlant = case (targetPlant field feeder) of
+    newPlant = case (targetPlant fieldSoFar feeder) of
                  Just (Plant (Food amount) location) -> Plant (Food $ clamp 0.0 1.0 (amount - foodEaten)) location
                  Nothing -> Plant (Food 0) (0, 0)
-    oldPlants = fieldPlants field
+    oldPlants = fieldPlants fieldSoFar
     newField = case newPlant of
-                Plant (Food amount) location | amount > 0.01 -> field { fieldPlants = Map.insert (feederTargetPlantID feeder) newPlant oldPlants }
-                _                                            -> field { fieldPlants = Map.delete (feederTargetPlantID feeder) oldPlants}
+                Plant (Food amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (feederTargetPlantID feeder) newPlant oldPlants }
+                _                                            -> fieldSoFar { fieldPlants = Map.delete (feederTargetPlantID feeder) oldPlants}
     oldTargetPlantID = feederTargetPlantID feeder
     newTargetPlantID = case newPlant of
                         Plant (Food amount) location | amount > 0.01 -> oldTargetPlantID
                         _                                            -> closestPlantID newField (feederLocation feeder)
+  in
+    (feeder { feederFood = clamp 0.0 1.0 newFeederFood, feederTargetPlantID = newTargetPlantID }, newField)
+
+
+--thirst :: Desire
+--thirst (previousWorld, fieldSoFar, feeder) = (thirstUrgency feeder, [moveToWater, drinkWater])
+
+--thirstUrgency :: Feeder -> Urgency
+--thirstUrgency feeder = (1.0 - (feederWater feeder)) ^ 2

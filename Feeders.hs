@@ -41,15 +41,14 @@ handleEvent :: Event -> AppState -> AppState
 handleEvent (EventKey key state modifiers newMouseLocation) (AppState world oldMouseLocation) = AppState world newMouseLocation
 handleEvent (EventMotion newMouseLocation) (AppState world oldMouseLocation) = AppState world newMouseLocation
 
-iterateAppState :: Float -> AppState -> AppState
+iterateAppState :: TimeInterval -> AppState -> AppState
 iterateAppState seconds (AppState world mouseLocation) = let 
     iteratedWorld = iterateWorld (seconds * 3) world
   in
     AppState iteratedWorld mouseLocation
 
-iterateWorld :: Float -> World -> World
-iterateWorld seconds (World feeders field) = foldr (\feeder (World feedersAccum fieldAccum) -> let 
-    (iteratedFeeder, affectedField) = iterateFeeder fieldAccum seconds feeder
-    movedFeeder = moveFeeder affectedField seconds iteratedFeeder
+iterateWorld :: TimeInterval -> World -> World
+iterateWorld seconds world@(World feeders field) = foldr (\feeder (World feedersAccum fieldAccum) -> let 
+    (iteratedFeeder, affectedField) = iterateFeeder world fieldAccum feeder seconds
     iteratedField = iterateField affectedField
-    in (World (movedFeeder:feedersAccum) iteratedField)) (World [] field) feeders
+    in (World (iteratedFeeder:feedersAccum) iteratedField)) (World [] field) feeders

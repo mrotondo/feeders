@@ -8,6 +8,8 @@ data AppState = AppState World Point
 
 data World = World Feeders Field
 
+type TimeInterval = Float
+
 type Feeders = [Feeder]
 data Feeder = Feeder { feederLocation       :: Point
                      , feederFood           :: Float
@@ -28,4 +30,5 @@ data Plant = Plant PlantType Point
     deriving (Show, Eq)
 
 data PlantType = Food Float
+               | Water Float
     deriving (Show, Eq)
