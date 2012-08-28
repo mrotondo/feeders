@@ -6,6 +6,8 @@ import Plant
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
 
+import Debug.Trace
+
 main :: IO ()
 main = do
     let width = 1680

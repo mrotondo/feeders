@@ -145,7 +145,7 @@ thirstUrgency feeder = (1.0 - (feederWater feeder)) ^ 4
 targetFood :: Action
 targetFood previousWorld fieldSoFar feeder seconds = let
     newTargetPlantID = case (targetPlant fieldSoFar feeder) of
-                         Just foodPlant@(Plant (Food amount) location) -> feederTargetPlantID feeder
+                         Just (Plant (Food amount) location) -> feederTargetPlantID feeder
                          _ -> closestFoodPlantID fieldSoFar (feederLocation feeder)
   in
     (feeder { feederTargetPlantID = newTargetPlantID }, fieldSoFar)
