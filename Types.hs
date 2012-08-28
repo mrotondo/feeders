@@ -31,4 +31,5 @@ data Plant = Plant PlantType Point
 
 data PlantType = Food Float
                | Water Float
+               | Dead
     deriving (Show, Eq)
