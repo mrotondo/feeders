@@ -25,19 +25,16 @@ newFeeder field loc = Feeder { feederLocation = loc
 
 randomFeeders :: Int -> Field -> IO Feeders
 randomFeeders numFeeders field = do
-    xs <- replicateM numFeeders (randomIO :: IO Float)
-    ys <- replicateM numFeeders (randomIO :: IO Float)
     let width = fromIntegral $ fieldWidth field
     let height = fromIntegral $ fieldHeight field
     let scaleX = ((-) (width / 2)) . ((*) width)
     let scaleY = ((-) (height / 2)) . ((*) height)
+    xs <- replicateM numFeeders (randomIO :: IO Float)
+    ys <- replicateM numFeeders (randomIO :: IO Float)
     let scaledXs = map scaleX xs
     let scaledYs = map scaleY ys
     let locations = zip scaledXs scaledYs
     return $ map (newFeeder field) locations
-
-initialFeeders :: Field -> Feeders
-initialFeeders field = map (newFeeder field) [(0, 0), (100, 100), (200, 200), (300, 300), (400, 400)]
 
 closestPlantID :: Map PlantID Plant -> Point -> PlantID
 closestPlantID plantMap feederLoc = fst $ minimumBy comparePlantDistances (Map.toList plantMap)
