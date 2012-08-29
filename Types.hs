@@ -11,11 +11,21 @@ data World = World Feeders Field
 type TimeInterval = Float
 
 type Feeders = [Feeder]
-data Feeder = Feeder { feederLocation       :: Point
-                     , feederFood           :: Float
-                     , feederWater          :: Float
-                     , feederTargetPlantID  :: PlantID
+data Feeder = Feeder { feederLocation                       :: Point
+                     , feederFood                           :: Float
+                     , feederWater                          :: Float
+                     , feederTargetPlantID                  :: PlantID
+                     , feederBehaviorName                   :: BehaviorName
+                     , feederBehaviorPersistencePreference  :: Float
                      }
+
+type Effect = World -> Feeder -> TimeInterval -> Feeder
+type Urgency = Float
+type DesireArgs = (World, Feeder) -- (packed for passing via (map $)) previous world state, feeder being operated on
+type Desire = DesireArgs -> (Urgency, Behavior)
+data Behavior = Behavior BehaviorName [Action]
+data BehaviorName = DoingNothing | Eating | Drinking deriving (Eq)
+type Action = World -> Field -> Feeder -> TimeInterval -> (Feeder, Field) -- previous world state, current field (as modified by tick thus far), feeder being operated on
 
 data Field = Field { fieldPlants            :: Map PlantID Plant
                    , fieldWidth             :: Int 

@@ -17,7 +17,9 @@ newFeeder :: Field -> Point -> Feeder
 newFeeder field loc = Feeder { feederLocation = loc
                              , feederFood = 1.0
                              , feederWater = 1.0
-                             , feederTargetPlantID = closestFoodPlantID field loc
+                             , feederTargetPlantID = closestFoodPlantID field loc -- TODO: Change this to Nothing
+                             , feederBehaviorName = DoingNothing
+                             , feederBehaviorPersistencePreference = 0.0
                              }
 
 randomFeeders :: Int -> Field -> IO Feeders
@@ -80,14 +82,6 @@ moveTowardsLocation targetLocation seconds feeder = feeder { feederLocation=oldL
 moveBy :: Point -> Vector -> Point
 moveBy = add
 
-type Effect = World -> Feeder -> TimeInterval -> Feeder
-type Urgency = Float
-type DesireArgs = (World, Feeder) -- (packed for passing via (map $)) previous world state, feeder being operated on
-type Desire = DesireArgs -> (Urgency, Behavior)
-type Behavior = [Action]
--- previous world state, current field (as modified by tick thus far), feeder being operated on
-type Action = World -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
-
 iterateFeeder :: World -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
 iterateFeeder previousWorld fieldSoFar feeder seconds = let
     affectedFeeder = foldr (\effect feederAccum -> effect previousWorld feederAccum seconds) feeder lifeEffects
@@ -121,8 +115,18 @@ doMostUrgentBehavior previousWorld fieldSoFar feeder seconds urgencyBehaviorTupl
     doBehavior previousWorld fieldSoFar feeder seconds mostUrgentBehavior
 
 doBehavior ::  World -> Field -> Feeder -> TimeInterval -> Behavior -> (Feeder, Field)
-doBehavior previousWorld fieldSoFar feeder seconds behavior = foldl (\(feederAccum, fieldAccum) action ->
-    action previousWorld fieldAccum feederAccum seconds) (feeder, fieldSoFar) behavior
+doBehavior previousWorld fieldSoFar feeder seconds (Behavior behaviorName actions) = let
+    (modifiedFeeder, modifiedField) = foldl (\(feederAccum, fieldAccum) action -> action previousWorld fieldAccum feederAccum seconds) (feeder, fieldSoFar) actions
+    oldBehaviorName = feederBehaviorName feeder
+    behaviorPersistencePreferenceFalloffRate = 0.8
+    oldBehaviorPersistencePreference = feederBehaviorPersistencePreference feeder
+    feederWithNewBehaviorName = case (oldBehaviorName == behaviorName) of
+        True  -> modifiedFeeder { feederBehaviorPersistencePreference = oldBehaviorPersistencePreference * (behaviorPersistencePreferenceFalloffRate ** seconds) }
+        False -> modifiedFeeder { feederBehaviorName = behaviorName
+                                , feederBehaviorPersistencePreference = 1.0
+                                }
+  in
+    (feederWithNewBehaviorName, modifiedField)
 
 generatePossibleBehaviors :: World -> Feeder -> [(Urgency, Behavior)]
 generatePossibleBehaviors previousWorld feeder = map ($ (previousWorld, feeder)) desires 
@@ -131,16 +135,29 @@ desires :: [Desire]
 desires = [hunger, thirst]
 
 hunger :: Desire
-hunger (previousWorld, feeder) = (foodUrgency feeder, [targetFood, moveTowardsTarget, eat])
+hunger (previousWorld, feeder) = (foodUrgency feeder, Behavior Eating [targetFood, moveTowardsTarget, eat])
 
 thirst :: Desire
-thirst (previousWorld, feeder) = (thirstUrgency feeder, [targetWater, moveTowardsTarget, drink])
+thirst (previousWorld, feeder) = (thirstUrgency feeder, Behavior Drinking [targetWater, moveTowardsTarget, drink])
 
 foodUrgency :: Feeder -> Urgency
-foodUrgency feeder = (1.0 - (feederFood feeder)) ^ 2
+foodUrgency feeder = let
+    baseUrgency = (1.0 - (feederFood feeder)) ^ 2
+    persistencePreference = case ((feederBehaviorName feeder) == Eating) of
+                                True  -> (feederBehaviorPersistencePreference feeder)
+                                False -> 0.0
+  in
+    baseUrgency + persistencePreference
 
 thirstUrgency :: Feeder -> Urgency
-thirstUrgency feeder = (1.0 - (feederWater feeder)) ^ 4
+thirstUrgency feeder = let
+    baseUrgency = (1.0 - (feederWater feeder)) ^ 4
+    persistencePreference = case ((feederBehaviorName feeder) == Drinking) of
+                                True  -> (feederBehaviorPersistencePreference feeder)
+                                False -> 0.0
+  in
+    baseUrgency + persistencePreference
+
 
 targetFood :: Action
 targetFood previousWorld fieldSoFar feeder seconds = let
