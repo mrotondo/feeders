@@ -14,7 +14,7 @@ type Feeders = [Feeder]
 data Feeder = Feeder { feederLocation                       :: Point
                      , feederFood                           :: Float
                      , feederWater                          :: Float
-                     , feederTargetPlantID                  :: PlantID
+                     , feederTargetPlantID                  :: Maybe PlantID
                      , feederBehaviorName                   :: BehaviorName
                      , feederBehaviorPersistencePreference  :: Float
                      }

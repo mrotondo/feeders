@@ -12,12 +12,13 @@ import Control.Monad (replicateM)
 import System.Random (randomIO)
 import Data.List (minimumBy, sortBy)
 import Data.Function (on)
+import Data.Maybe (fromJust)
 
 newFeeder :: Field -> Point -> Feeder
 newFeeder field loc = Feeder { feederLocation = loc
                              , feederFood = 1.0
                              , feederWater = 1.0
-                             , feederTargetPlantID = closestFoodPlantID field loc -- TODO: Change this to Nothing
+                             , feederTargetPlantID = Nothing
                              , feederBehaviorName = DoingNothing
                              , feederBehaviorPersistencePreference = 0.0
                              }
@@ -59,7 +60,9 @@ closestWaterPlantID field feederLoc = closestPlantID waterPlants feederLoc
                                           _                             -> False) (fieldPlants field)
 
 targetPlant :: Field -> Feeder -> Maybe Plant
-targetPlant field feeder = Map.lookup (feederTargetPlantID feeder) (fieldPlants field)
+targetPlant field feeder = case (feederTargetPlantID feeder) of
+                             Just targetPlantID -> Map.lookup targetPlantID (fieldPlants field)
+                             Nothing            -> Nothing
 
 targetPlantLocation :: Field -> Feeder -> Point
 targetPlantLocation field feeder  = case (targetPlant field feeder) of
@@ -163,7 +166,7 @@ targetFood :: Action
 targetFood previousWorld fieldSoFar feeder seconds = let
     newTargetPlantID = case (targetPlant fieldSoFar feeder) of
                          Just (Plant (Food amount) location) -> feederTargetPlantID feeder
-                         _ -> closestFoodPlantID fieldSoFar (feederLocation feeder)
+                         _ -> Just $ closestFoodPlantID fieldSoFar (feederLocation feeder)
   in
     (feeder { feederTargetPlantID = newTargetPlantID }, fieldSoFar)
 
@@ -171,7 +174,7 @@ targetWater :: Action
 targetWater previousWorld fieldSoFar feeder seconds = let
     newTargetPlantID = case (targetPlant fieldSoFar feeder) of
                          Just (Plant (Water amount) location) -> feederTargetPlantID feeder
-                         _ -> closestWaterPlantID fieldSoFar (feederLocation feeder)
+                         _ -> Just $ closestWaterPlantID fieldSoFar (feederLocation feeder)
   in
     (feeder { feederTargetPlantID = newTargetPlantID }, fieldSoFar)
 
@@ -189,8 +192,8 @@ eat previousWorld fieldSoFar feeder seconds = let
                  Just (Plant (Food amount) location) -> Plant (Food $ clamp 0.0 1.0 (amount - foodEaten)) location
                  _ -> Plant Dead (0, 0)
     fieldWithEatenPlant = case eatenPlant of
-                Plant (Food amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (feederTargetPlantID feeder) eatenPlant (fieldPlants fieldSoFar) }
-                _                                            -> fieldSoFar { fieldPlants = Map.delete (feederTargetPlantID feeder) (fieldPlants fieldSoFar)}
+                Plant (Food amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (fromJust (feederTargetPlantID feeder)) eatenPlant (fieldPlants fieldSoFar) }
+                _                                            -> fieldSoFar { fieldPlants = Map.delete (fromJust (feederTargetPlantID feeder)) (fieldPlants fieldSoFar)}
   in
     (feeder { feederFood = clamp 0.0 1.0 ((feederFood feeder) + foodEaten) }, fieldWithEatenPlant)
 
@@ -202,7 +205,7 @@ drink previousWorld fieldSoFar feeder seconds = let
                  Just (Plant (Water amount) location) -> Plant (Water $ clamp 0.0 1.0 (amount - waterDrank)) location
                  _ -> Plant Dead (0, 0)
     fieldWithDrankPlant = case drankPlant of
-                Plant (Water amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (feederTargetPlantID feeder) drankPlant (fieldPlants fieldSoFar) }
-                _                                            -> fieldSoFar { fieldPlants = Map.delete (feederTargetPlantID feeder) (fieldPlants fieldSoFar)}
+                Plant (Water amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (fromJust (feederTargetPlantID feeder)) drankPlant (fieldPlants fieldSoFar) }
+                _                                            -> fieldSoFar { fieldPlants = Map.delete (fromJust (feederTargetPlantID feeder)) (fieldPlants fieldSoFar)}
   in
     (feeder { feederWater = clamp 0.0 1.0 ((feederWater feeder) + waterDrank) }, fieldWithDrankPlant)
