@@ -25,7 +25,7 @@ type DesireArgs = (World, Feeder) -- (packed for passing via (map $)) previous w
 type Desire = DesireArgs -> (Urgency, Behavior)
 data Behavior = Behavior BehaviorName [Action]
 data BehaviorName = DoingNothing | Eating | Drinking deriving (Eq)
-type Action = World -> Field -> Feeder -> TimeInterval -> (Feeder, Field) -- previous world state, current field (as modified by tick thus far), feeder being operated on
+type Action = World -> Feeders -> Field -> Feeder -> TimeInterval -> (Feeder, Field) -- previous world state, current field (as modified by tick thus far), feeder being operated on
 
 data Field = Field { fieldPlants            :: Map PlantID Plant
                    , fieldWidth             :: Int 

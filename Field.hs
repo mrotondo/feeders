@@ -13,7 +13,7 @@ randomField :: (Int, Int) -> IO Field
 randomField (width, height) = do
     randomPlantPercent <- randomIO :: IO Float
     let plantPercent = 0.3 + 0.7 * randomPlantPercent
-    let maxNumPlants = 0.0003 * (fromIntegral width) * (fromIntegral height)
+    let maxNumPlants = 0.003 * (fromIntegral width) * (fromIntegral height)
     let numPlants = floor $ plantPercent * maxNumPlants
     randomGenSeed <- randomIO :: IO Int
     let emptyField = Field { fieldPlants         = Map.empty
@@ -43,3 +43,8 @@ addRandomPlants numPlants field = case numPlants of
                      , fieldNextPlantID = plantID + 1
                      , fieldRandomGen = newGen
                      }
+
+fieldWithOnlyUntargetedPlants :: Feeders -> Field -> Field
+fieldWithOnlyUntargetedPlants feeders field = field { fieldPlants = untargetedPlants }
+  where
+    untargetedPlants = Map.filterWithKey (\plantID plant -> not (isTargeted feeders (Just plantID))) (fieldPlants field)

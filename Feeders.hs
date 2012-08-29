@@ -13,7 +13,7 @@ main = do
     let width = 1680
     let height = 1050
     field <- randomField (width, height)
-    feeders <- randomFeeders 1 field
+    feeders <- randomFeeders 100 field
     play (FullScreen (1680, 1050)) (light black) 60 (initialAppState feeders field) drawWorld handleEvent iterateAppState
 
 initialAppState feeders field = AppState (World feeders field) (0, 0)
@@ -54,6 +54,6 @@ iterateAppState seconds (AppState world mouseLocation) = let
 
 iterateWorld :: TimeInterval -> World -> World
 iterateWorld seconds world@(World feeders field) = foldr (\feeder (World feedersAccum fieldAccum) -> let 
-    (iteratedFeeder, affectedField) = iterateFeeder world fieldAccum feeder seconds
+    (iteratedFeeder, affectedField) = iterateFeeder world feedersAccum fieldAccum feeder seconds
     iteratedField = iterateField affectedField
     in (World (iteratedFeeder:feedersAccum) iteratedField)) (World [] field) feeders

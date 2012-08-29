@@ -82,12 +82,12 @@ moveTowardsLocation targetLocation seconds feeder = feeder { feederLocation=oldL
 moveBy :: Point -> Vector -> Point
 moveBy = add
 
-iterateFeeder :: World -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
-iterateFeeder previousWorld fieldSoFar feeder seconds = let
+iterateFeeder :: World -> Feeders -> Field -> Feeder -> TimeInterval -> (Feeder, Field)
+iterateFeeder previousWorld feedersSoFar fieldSoFar feeder seconds = let
     affectedFeeder = foldr (\effect feederAccum -> effect previousWorld feederAccum seconds) feeder lifeEffects
     urgencyBehaviorTuples = generatePossibleBehaviors previousWorld affectedFeeder
   in 
-    doMostUrgentBehavior previousWorld fieldSoFar affectedFeeder seconds urgencyBehaviorTuples
+    doMostUrgentBehavior previousWorld feedersSoFar fieldSoFar affectedFeeder seconds urgencyBehaviorTuples
 
 lifeEffects :: [Effect]
 lifeEffects = [getHungrier, getThirstier]
@@ -108,15 +108,15 @@ getThirstier previousWorld feeder seconds = feeder { feederWater = clamp 0.0 1.0
     newThirst = thirstPerSecond * seconds
     newFeederWater = oldFeederWater - newThirst
 
-doMostUrgentBehavior :: World -> Field -> Feeder -> TimeInterval -> [(Urgency, Behavior)] -> (Feeder, Field)
-doMostUrgentBehavior previousWorld fieldSoFar feeder seconds urgencyBehaviorTuples = let
+doMostUrgentBehavior :: World -> Feeders -> Field -> Feeder -> TimeInterval -> [(Urgency, Behavior)] -> (Feeder, Field)
+doMostUrgentBehavior previousWorld feedersSoFar fieldSoFar feeder seconds urgencyBehaviorTuples = let
     mostUrgentBehavior = snd . head $ sortBy (compare `on` (((-) 1.0) . fst)) $ urgencyBehaviorTuples
   in
-    doBehavior previousWorld fieldSoFar feeder seconds mostUrgentBehavior
+    doBehavior previousWorld feedersSoFar fieldSoFar feeder seconds mostUrgentBehavior
 
-doBehavior ::  World -> Field -> Feeder -> TimeInterval -> Behavior -> (Feeder, Field)
-doBehavior previousWorld fieldSoFar feeder seconds (Behavior behaviorName actions) = let
-    (modifiedFeeder, modifiedField) = foldl (\(feederAccum, fieldAccum) action -> action previousWorld fieldAccum feederAccum seconds) (feeder, fieldSoFar) actions
+doBehavior ::  World -> Feeders -> Field -> Feeder -> TimeInterval -> Behavior -> (Feeder, Field)
+doBehavior previousWorld feedersSoFar fieldSoFar feeder seconds (Behavior behaviorName actions) = let
+    (modifiedFeeder, modifiedField) = foldl (\(feederAccum, fieldAccum) action -> action previousWorld feedersSoFar fieldAccum feederAccum seconds) (feeder, fieldSoFar) actions
     oldBehaviorName = feederBehaviorName feeder
     behaviorPersistencePreferenceFalloffRate = 0.8
     oldBehaviorPersistencePreference = feederBehaviorPersistencePreference feeder
@@ -160,29 +160,35 @@ thirstUrgency feeder = let
 
 
 targetFood :: Action
-targetFood previousWorld fieldSoFar feeder seconds = let
-    newTargetPlantID = case (targetPlant fieldSoFar feeder) of
-                         Just (Plant (Food amount) location) -> feederTargetPlantID feeder
-                         _ -> Just $ closestFoodPlantID fieldSoFar (feederLocation feeder)
+targetFood previousWorld feedersSoFar fieldSoFar feeder seconds = let
+    targetableField = fieldWithOnlyUntargetedPlants feedersSoFar fieldSoFar
+    alreadyTargetingFood = isFood (targetPlant fieldSoFar feeder)
+    currentTargetHasBeenClaimed = isTargeted feedersSoFar (feederTargetPlantID feeder)
+    newTargetPlantID = case (alreadyTargetingFood && (not currentTargetHasBeenClaimed)) of
+                         True  -> feederTargetPlantID feeder
+                         False -> Just $ closestFoodPlantID targetableField (feederLocation feeder)
   in
     (feeder { feederTargetPlantID = newTargetPlantID }, fieldSoFar)
 
 targetWater :: Action
-targetWater previousWorld fieldSoFar feeder seconds = let
-    newTargetPlantID = case (targetPlant fieldSoFar feeder) of
-                         Just (Plant (Water amount) location) -> feederTargetPlantID feeder
-                         _ -> Just $ closestWaterPlantID fieldSoFar (feederLocation feeder)
+targetWater previousWorld feedersSoFar fieldSoFar feeder seconds = let
+    targetableField = fieldWithOnlyUntargetedPlants feedersSoFar fieldSoFar
+    alreadyTargetingWater = isWater (targetPlant fieldSoFar feeder)
+    currentTargetHasBeenClaimed = isTargeted feedersSoFar (feederTargetPlantID feeder)
+    newTargetPlantID = case (alreadyTargetingWater && (not currentTargetHasBeenClaimed)) of
+                         True  -> feederTargetPlantID feeder
+                         False -> Just $ closestWaterPlantID targetableField (feederLocation feeder)
   in
     (feeder { feederTargetPlantID = newTargetPlantID }, fieldSoFar)
 
 moveTowardsTarget :: Action
-moveTowardsTarget previousWorld fieldSoFar feeder seconds = let
+moveTowardsTarget previousWorld feedersSoFar fieldSoFar feeder seconds = let
     movedFeeder = moveTowardsLocation (targetPlantLocation fieldSoFar feeder) seconds feeder
   in
     (movedFeeder, fieldSoFar)
 
 eat :: Action
-eat previousWorld fieldSoFar feeder seconds = let
+eat previousWorld feedersSoFar fieldSoFar feeder seconds = let
     foodEatenPerSecond = 0.25
     foodEaten = if (distanceToTargetPlant fieldSoFar feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
     eatenPlant = case (targetPlant fieldSoFar feeder) of
@@ -195,7 +201,7 @@ eat previousWorld fieldSoFar feeder seconds = let
     (feeder { feederFood = clamp 0.0 1.0 ((feederFood feeder) + foodEaten) }, fieldWithEatenPlant)
 
 drink :: Action
-drink previousWorld fieldSoFar feeder seconds = let
+drink previousWorld feedersSoFar fieldSoFar feeder seconds = let
     waterDrankPerSecond = 0.35
     waterDrank = if (distanceToTargetPlant fieldSoFar feeder) < 2.5 then (waterDrankPerSecond * seconds) else 0
     drankPlant = case (targetPlant fieldSoFar feeder) of

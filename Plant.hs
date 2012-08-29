@@ -3,6 +3,7 @@ import System.Random (RandomGen, random)
 import Graphics.Gloss
 import Types
 import Geometry
+import Data.List (any)
 
 plantLocation (Plant plantType location) = location
 
@@ -31,3 +32,16 @@ randomPlant gen (width, height) = let
                   False -> Food amount
                   True  -> Water amount
     in (Plant plantType (x + offsetX, y + offsetY), gen'''')
+
+isWater :: Maybe Plant -> Bool
+isWater plant = case plant of
+                  Just (Plant (Water amount) location) -> True
+                  _                                    -> False
+
+isFood :: Maybe Plant -> Bool
+isFood plant = case plant of
+                 Just (Plant (Food amount) location) -> True
+                 _                                   -> False
+
+isTargeted :: Feeders -> Maybe PlantID -> Bool
+isTargeted feeders plantID = any (\feeder -> (feederTargetPlantID feeder) == plantID) feeders
