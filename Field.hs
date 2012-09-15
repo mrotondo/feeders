@@ -28,8 +28,9 @@ randomField (width, height) = do
 iterateField :: Field -> Field
 iterateField field = let 
     oldPlants = fieldPlants field
-    numberOfPlantsToCreate = (fieldNumberOfPlants field) - (Map.size oldPlants)
-    in addRandomPlants numberOfPlantsToCreate field
+    stillAlivePlants = Map.filter (\(Plant plantType amount location) -> amount > 0) oldPlants
+    numberOfPlantsToCreate = (fieldNumberOfPlants field) - (Map.size stillAlivePlants)
+    in addRandomPlants numberOfPlantsToCreate (field { fieldPlants = stillAlivePlants})
 
 addRandomPlants :: Int -> Field -> Field
 addRandomPlants numPlants field = case numPlants of

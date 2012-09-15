@@ -36,10 +36,8 @@ data Field = Field { fieldPlants            :: Map PlantID Plant
                    }
 
 type PlantID = Int
-data Plant = Plant PlantType Point 
+data Plant = Plant PlantType Float Point 
     deriving (Show, Eq)
 
-data PlantType = Food Float
-               | Water Float
-               | Dead
+data PlantType = Food | Water 
     deriving (Show, Eq)

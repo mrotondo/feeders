@@ -45,16 +45,12 @@ closestPlantID plantMap feederLoc = fst $ minimumBy comparePlantDistances (Map.t
 closestFoodPlantID :: Field -> Point -> PlantID
 closestFoodPlantID field feederLoc = closestPlantID foodPlants feederLoc
   where
-    foodPlants = Map.filter (\plant -> case plant of
-                                         Plant (Food amount) location -> True
-                                         _                            -> False) (fieldPlants field)
+    foodPlants = Map.filter (isFood . Just) (fieldPlants field)
 
 closestWaterPlantID :: Field -> Point -> PlantID
 closestWaterPlantID field feederLoc = closestPlantID waterPlants feederLoc
   where
-    waterPlants = Map.filter (\plant -> case plant of
-                                          Plant (Water amount) location -> True
-                                          _                             -> False) (fieldPlants field)
+    waterPlants = Map.filter (isWater . Just) (fieldPlants field)
 
 targetPlant :: Field -> Feeder -> Maybe Plant
 targetPlant field feeder = case (feederTargetPlantID feeder) of
@@ -192,11 +188,12 @@ eat previousWorld feedersSoFar fieldSoFar feeder seconds = let
     foodEatenPerSecond = 0.25
     foodEaten = if (distanceToTargetPlant fieldSoFar feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
     eatenPlant = case (targetPlant fieldSoFar feeder) of
-                 Just (Plant (Food amount) location) -> Plant (Food $ clamp 0.0 1.0 (amount - foodEaten)) location
-                 _ -> Plant Dead (0, 0)
-    fieldWithEatenPlant = case eatenPlant of
-                Plant (Food amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (fromJust (feederTargetPlantID feeder)) eatenPlant (fieldPlants fieldSoFar) }
-                _                                            -> fieldSoFar { fieldPlants = Map.delete (fromJust (feederTargetPlantID feeder)) (fieldPlants fieldSoFar)}
+                 Just (Plant Food amount location) -> Just $ Plant Food (clamp 0.0 1.0 (amount - foodEaten)) location
+                 _ -> Nothing
+    newPlants = case eatenPlant of
+                Just plant -> Map.insert (fromJust (feederTargetPlantID feeder)) (fromJust eatenPlant) (fieldPlants fieldSoFar)
+                Nothing    -> (fieldPlants fieldSoFar)
+    fieldWithEatenPlant = fieldSoFar { fieldPlants = newPlants }
   in
     (feeder { feederFood = clamp 0.0 1.0 ((feederFood feeder) + foodEaten) }, fieldWithEatenPlant)
 
@@ -205,10 +202,11 @@ drink previousWorld feedersSoFar fieldSoFar feeder seconds = let
     waterDrankPerSecond = 0.35
     waterDrank = if (distanceToTargetPlant fieldSoFar feeder) < 2.5 then (waterDrankPerSecond * seconds) else 0
     drankPlant = case (targetPlant fieldSoFar feeder) of
-                 Just (Plant (Water amount) location) -> Plant (Water $ clamp 0.0 1.0 (amount - waterDrank)) location
-                 _ -> Plant Dead (0, 0)
-    fieldWithDrankPlant = case drankPlant of
-                Plant (Water amount) location | amount > 0.01 -> fieldSoFar { fieldPlants = Map.insert (fromJust (feederTargetPlantID feeder)) drankPlant (fieldPlants fieldSoFar) }
-                _                                            -> fieldSoFar { fieldPlants = Map.delete (fromJust (feederTargetPlantID feeder)) (fieldPlants fieldSoFar)}
+                 Just (Plant Water amount location) -> Just $ Plant Water (clamp 0.0 1.0 (amount - waterDrank)) location
+                 _ -> Nothing
+    newPlants = case drankPlant of
+                Just plant -> Map.insert (fromJust (feederTargetPlantID feeder)) (fromJust drankPlant) (fieldPlants fieldSoFar)
+                Nothing    -> (fieldPlants fieldSoFar)
+    fieldWithDrankPlant = fieldSoFar { fieldPlants = newPlants }
   in
     (feeder { feederWater = clamp 0.0 1.0 ((feederWater feeder) + waterDrank) }, fieldWithDrankPlant)

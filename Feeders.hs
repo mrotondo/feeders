@@ -13,10 +13,12 @@ main = do
     let width = 1680
     let height = 1050
     field <- randomField (width, height)
-    feeders <- randomFeeders 100 field
+    feeders <- randomFeeders 10 field
     play (FullScreen (1680, 1050)) (light black) 60 (initialAppState feeders field) drawWorld handleEvent iterateAppState
 
 initialAppState feeders field = AppState (World feeders field) (0, 0)
+
+-- Graphics 
 
 drawWorld :: AppState -> Picture
 drawWorld (AppState (World feeders field) mouseLocation) = Pictures [drawField field, drawFeeders feeders]
@@ -25,7 +27,7 @@ drawField :: Field -> Picture
 drawField field = Pictures $ map drawPlant (plants field)
 
 drawPlant :: Plant -> Picture
-drawPlant plant@(Plant plantType (x, y)) = let
+drawPlant plant@(Plant _ _ (x, y)) = let
     size = plantSize plant
     color = plantColor plant
   in
@@ -41,6 +43,8 @@ drawFeeder feeder = let
                                   , Color green $ ThickArc 180 (180 + (180 * (feederFood feeder))) 10 5
                                   , Color (dark cyan) $ ThickArc 180 (180 - (180 * (feederWater feeder))) 10 5
                                   ]
+
+-- Iteration
 
 handleEvent :: Event -> AppState -> AppState
 handleEvent (EventKey key state modifiers newMouseLocation) (AppState world oldMouseLocation) = AppState world newMouseLocation
