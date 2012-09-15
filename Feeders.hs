@@ -5,6 +5,7 @@ import Field
 import Plant
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
+import System.Random (randomIO, mkStdGen)
 
 import Debug.Trace
 
@@ -12,16 +13,24 @@ main :: IO ()
 main = do
     let width = 1680
     let height = 1050
-    field <- randomField (width, height)
+    randomGenSeed <- randomIO
+    let randomGen = mkStdGen randomGenSeed
+    let (field, newRandomGen) = randomField (width, height) randomGen
     feeders <- randomFeeders 10 field
-    play (FullScreen (1680, 1050)) (light black) 60 (initialAppState feeders field) drawWorld handleEvent iterateAppState
+    let world = initialWorld feeders field newRandomGen
+    play (FullScreen (1680, 1050)) (light black) 60 (initialAppState world) drawWorld handleEvent iterateAppState
 
-initialAppState feeders field = AppState (World feeders field) (0, 0)
+initialWorld feeders field randomGen = World { worldFeeders = feeders
+                                             , worldField = field
+                                             , worldRandomGen = randomGen
+                                             }
+
+initialAppState world = AppState world (0, 0)
 
 -- Graphics 
 
 drawWorld :: AppState -> Picture
-drawWorld (AppState (World feeders field) mouseLocation) = Pictures [drawField field, drawFeeders feeders]
+drawWorld (AppState world mouseLocation) = Pictures [drawField (worldField world), drawFeeders (worldFeeders world)]
 
 drawField :: Field -> Picture
 drawField field = Pictures $ map drawPlant (plants field)
@@ -57,7 +66,8 @@ iterateAppState seconds (AppState world mouseLocation) = let
     AppState iteratedWorld mouseLocation
 
 iterateWorld :: TimeInterval -> World -> World
-iterateWorld seconds world@(World feeders field) = foldr (\feeder (World feedersAccum fieldAccum) -> let 
-    (iteratedFeeder, affectedField) = iterateFeeder world feedersAccum fieldAccum feeder seconds
-    iteratedField = iterateField affectedField
-    in (World (iteratedFeeder:feedersAccum) iteratedField)) (World [] field) feeders
+iterateWorld seconds world = foldr (\feeder worldAccum -> let 
+    (iteratedFeeder, affectedField) = iterateFeeder world (worldFeeders worldAccum) (worldField worldAccum) feeder seconds
+    (iteratedField, newGen) = iterateField affectedField (worldRandomGen worldAccum)
+    in (World { worldFeeders = iteratedFeeder:(worldFeeders worldAccum), worldField = iteratedField, worldRandomGen = newGen })) 
+    (world { worldFeeders = [] }) (worldFeeders world)

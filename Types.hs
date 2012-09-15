@@ -6,7 +6,10 @@ import System.Random (StdGen)
 
 data AppState = AppState World Point
 
-data World = World Feeders Field
+data World = World { worldFeeders   :: Feeders
+                   , worldField     :: Field
+                   , worldRandomGen :: StdGen
+                   }
 
 type TimeInterval = Float
 
@@ -27,12 +30,11 @@ data Behavior = Behavior BehaviorName [Action]
 data BehaviorName = DoingNothing | Eating | Drinking deriving (Eq)
 type Action = World -> Feeders -> Field -> Feeder -> TimeInterval -> (Feeder, Field) -- previous world state, current field (as modified by tick thus far), feeder being operated on
 
-data Field = Field { fieldPlants            :: Map PlantID Plant
-                   , fieldWidth             :: Int 
-                   , fieldHeight            :: Int
-                   , fieldNextPlantID       :: PlantID
-                   , fieldNumberOfPlants    :: Int
-                   , fieldRandomGen         :: StdGen 
+data Field = Field { fieldPlants          :: Map PlantID Plant
+                   , fieldWidth           :: Int 
+                   , fieldHeight          :: Int
+                   , fieldNextPlantID     :: PlantID
+                   , fieldNumberOfPlants  :: Int
                    }
 
 type PlantID = Int
