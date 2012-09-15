@@ -4,6 +4,7 @@ import Graphics.Gloss
 import Types
 import Geometry
 import Data.List (any)
+import Data.Map (elems)
 
 plantLocation (Plant _ _ location) = location
 
@@ -43,4 +44,4 @@ isFood plant = case plant of
 
 isTargeted :: Feeders -> Maybe PlantID -> Bool
 -- Change this to use a reverse index from PlantIDs to FeederIDs
-isTargeted feeders plantID = any (\feeder -> (feederTargetPlantID feeder) == plantID) feeders 
+isTargeted feeders plantID = any (\feeder -> (feederTargetPlantID feeder) == plantID) (elems feeders)

@@ -9,32 +9,37 @@ import Math
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad (replicateM)
-import System.Random (randomIO)
+import System.Random (RandomGen, random)
 import Data.List (minimumBy, sortBy)
 import Data.Function (on)
 import Data.Maybe (fromJust)
 
-newFeeder :: Field -> Point -> Feeder
-newFeeder field loc = Feeder { feederLocation = loc
-                             , feederFood = 1.0
-                             , feederWater = 1.0
-                             , feederTargetPlantID = Nothing
-                             , feederBehaviorName = DoingNothing
-                             , feederBehaviorPersistencePreference = 0.0
-                             }
+newFeeder :: Point -> Feeder
+newFeeder loc = Feeder { feederLocation = loc
+                       , feederFood = 1.0
+                       , feederWater = 1.0
+                       , feederTargetPlantID = Nothing
+                       , feederBehaviorName = DoingNothing
+                       , feederBehaviorPersistencePreference = 0.0
+                       }
 
-randomFeeders :: Int -> Field -> IO Feeders
-randomFeeders numFeeders field = do
-    let width = fromIntegral $ fieldWidth field
-    let height = fromIntegral $ fieldHeight field
-    let scaleX = ((-) (width / 2)) . ((*) width)
-    let scaleY = ((-) (height / 2)) . ((*) height)
-    xs <- replicateM numFeeders (randomIO :: IO Float)
-    ys <- replicateM numFeeders (randomIO :: IO Float)
-    let scaledXs = map scaleX xs
-    let scaledYs = map scaleY ys
-    let locations = zip scaledXs scaledYs
-    return $ map (newFeeder field) locations
+addRandomFeeders :: Int -> World -> World
+addRandomFeeders numFeeders world = case numFeeders of
+    0 -> world
+    _ -> addRandomFeeders (numFeeders - 1) newWorld
+  where
+    width = fromIntegral $ fieldWidth (worldField world)
+    height = fromIntegral $ fieldHeight (worldField world)
+    scaleX = ((-) (width / 2)) . ((*) width)
+    scaleY = ((-) (height / 2)) . ((*) height)
+    randomGen = worldRandomGen world
+    (x, randomGen')  = random randomGen
+    (y, randomGen'') = random randomGen'
+    scaledX = scaleX x
+    scaledY = scaleY y
+    feederID = worldNextFeederID world
+    newFeeders = Map.insert feederID (newFeeder (scaledX, scaledY)) (worldFeeders world)
+    newWorld = world { worldFeeders = newFeeders, worldNextFeederID = feederID + 1, worldRandomGen = randomGen''}
 
 closestPlantID :: Map PlantID Plant -> Point -> PlantID
 closestPlantID plantMap feederLoc = fst $ minimumBy comparePlantDistances (Map.toList plantMap)

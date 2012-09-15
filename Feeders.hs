@@ -6,6 +6,7 @@ import Plant
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
 import System.Random (randomIO, mkStdGen)
+import Data.Map (empty, elems, foldrWithKey, insert)
 
 import Debug.Trace
 
@@ -15,15 +16,16 @@ main = do
     let height = 1050
     randomGenSeed <- randomIO
     let randomGen = mkStdGen randomGenSeed
-    let (field, newRandomGen) = randomField (width, height) randomGen
-    feeders <- randomFeeders 10 field
-    let world = initialWorld feeders field newRandomGen
-    play (FullScreen (1680, 1050)) (light black) 60 (initialAppState world) drawWorld handleEvent iterateAppState
+    let (field, randomGen') = randomField (width, height) randomGen
+    let worldWithPlants = initialWorld field randomGen'
+    let worldWithFeeders = addRandomFeeders 10 worldWithPlants
+    play (FullScreen (width, height)) (light black) 60 (initialAppState worldWithFeeders) drawWorld handleEvent iterateAppState
 
-initialWorld feeders field randomGen = World { worldFeeders = feeders
-                                             , worldField = field
-                                             , worldRandomGen = randomGen
-                                             }
+initialWorld field randomGen = World { worldFeeders = empty
+                                     , worldNextFeederID = 1
+                                     , worldField = field
+                                     , worldRandomGen = randomGen
+                                     }
 
 initialAppState world = AppState world (0, 0)
 
@@ -43,7 +45,7 @@ drawPlant plant@(Plant _ _ (x, y)) = let
     Translate x y $ Color color $ ThickCircle size (size * 2)
 
 drawFeeders :: Feeders -> Picture
-drawFeeders feeders = Pictures $ map drawFeeder feeders
+drawFeeders feeders = Pictures $ map drawFeeder (elems feeders)
 
 drawFeeder :: Feeder -> Picture
 drawFeeder feeder = let 
@@ -66,8 +68,9 @@ iterateAppState seconds (AppState world mouseLocation) = let
     AppState iteratedWorld mouseLocation
 
 iterateWorld :: TimeInterval -> World -> World
-iterateWorld seconds world = foldr (\feeder worldAccum -> let 
+iterateWorld seconds world = foldrWithKey (\feederID feeder worldAccum -> let 
     (iteratedFeeder, affectedField) = iterateFeeder world (worldFeeders worldAccum) (worldField worldAccum) feeder seconds
     (iteratedField, newGen) = iterateField affectedField (worldRandomGen worldAccum)
-    in (World { worldFeeders = iteratedFeeder:(worldFeeders worldAccum), worldField = iteratedField, worldRandomGen = newGen })) 
-    (world { worldFeeders = [] }) (worldFeeders world)
+    newFeeders = insert feederID iteratedFeeder (worldFeeders worldAccum)
+    in (world { worldFeeders = newFeeders, worldField = iteratedField, worldRandomGen = newGen })) 
+    (world { worldFeeders = empty }) (worldFeeders world)
