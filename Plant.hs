@@ -3,8 +3,7 @@ import System.Random (RandomGen, random)
 import Graphics.Gloss
 import Types
 import Geometry
-import Data.List (any)
-import Data.Map (elems)
+import qualified Data.Map as Map
 
 plantLocation (Plant _ _ location) = location
 
@@ -36,4 +35,4 @@ isOfType :: PlantType -> Plant -> Bool
 isOfType plantTypeToCompare (Plant plantType _ _) = plantType == plantTypeToCompare
 
 isTargeted :: World -> PlantID -> Bool
-isTargeted world plantID = any (\feeder -> (feederTargetPlantID feeder) == (Just plantID)) (elems (worldFeeders world))
+isTargeted world plantID = Map.member plantID (worldTargetedPlants world)
