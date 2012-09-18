@@ -32,16 +32,8 @@ randomPlant gen (width, height) = let
                   True  -> Water
     in (Plant plantType amount (x + offsetX, y + offsetY), gen'''')
 
-isWater :: Maybe Plant -> Bool
-isWater plant = case plant of
-                  Just (Plant Water _ _) -> True
-                  _                      -> False
+isOfType :: PlantType -> Plant -> Bool
+isOfType plantTypeToCompare (Plant plantType _ _) = plantType == plantTypeToCompare
 
-isFood :: Maybe Plant -> Bool
-isFood plant = case plant of
-                 Just (Plant Food _ _) -> True
-                 _                     -> False
-
-isTargeted :: Feeders -> Maybe PlantID -> Bool
--- Change this to use a reverse index from PlantIDs to FeederIDs
-isTargeted feeders plantID = any (\feeder -> (feederTargetPlantID feeder) == plantID) (elems feeders)
+isTargeted :: World -> PlantID -> Bool
+isTargeted world plantID = any (\feeder -> (feederTargetPlantID feeder) == (Just plantID)) (elems (worldFeeders world))

@@ -9,6 +9,9 @@ import qualified Data.Map as Map
 plants :: Field -> [Plant]
 plants = Map.elems . fieldPlants
 
+contains :: Field -> PlantID -> Bool
+field `contains` plantID = Map.member plantID (fieldPlants field)
+
 randomField :: RandomGen g => (Int, Int) -> g -> (Field, g)
 randomField (width, height) randomGen = let
     (randomPlantPercent, randomGen') = (random randomGen)
@@ -26,7 +29,7 @@ randomField (width, height) randomGen = let
 iterateField :: RandomGen g => Field -> g -> (Field, g)
 iterateField field randomGen = let 
     oldPlants = fieldPlants field
-    stillAlivePlants = Map.filter (\(Plant plantType amount location) -> amount > 0) oldPlants
+    stillAlivePlants = Map.filter (\(Plant plantType amount location) -> amount > 0.0001) oldPlants
     numberOfPlantsToCreate = (fieldNumberOfPlants field) - (Map.size stillAlivePlants)
     in addRandomPlants numberOfPlantsToCreate (field { fieldPlants = stillAlivePlants}) randomGen
 
@@ -42,7 +45,7 @@ addRandomPlants numPlants field randomGen = case numPlants of
                      , fieldNextPlantID = plantID + 1
                      }
 
-fieldWithOnlyUntargetedPlants :: Feeders -> Field -> Field
-fieldWithOnlyUntargetedPlants feeders field = field { fieldPlants = untargetedPlants }
+untargetedPlants :: World -> Plants
+untargetedPlants world = Map.filterWithKey (\plantID _ -> not (isTargeted world plantID)) plants
   where
-    untargetedPlants = Map.filterWithKey (\plantID plant -> not (isTargeted feeders (Just plantID))) (fieldPlants field)
+    plants = (fieldPlants (worldField world))
