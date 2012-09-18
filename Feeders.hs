@@ -10,8 +10,6 @@ import System.Random (randomIO, mkStdGen)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Debug.Trace
-
 main :: IO ()
 main = do
     let width = 1680
@@ -64,7 +62,7 @@ iterateAppState seconds (AppState world mouseLocation) = let
 iterateWorld :: TimeInterval -> World -> World
 iterateWorld seconds world = let
     changesFromFeeders = Map.mapWithKey (\feederID feeder -> changesFromFeeder world feederID feeder seconds) (worldFeeders world)
-    world' = Map.foldr (\changesFromAction worldAccum -> foldl (\worldAccum' change -> change worldAccum') worldAccum changesFromAction) world changesFromFeeders
+    world' = Map.foldl (\worldAccum changesFromAction -> foldl (\worldAccum' change -> change worldAccum') worldAccum changesFromAction) world changesFromFeeders
     (iteratedField, newGen) = iterateField (worldField world') (worldRandomGen world')
     world'' = world' { worldField = iteratedField, worldRandomGen = newGen }
   in 

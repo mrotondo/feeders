@@ -41,7 +41,7 @@ addRandomFeeders numFeeders world = case numFeeders of
     newFeeders = Map.insert feederID (newFeeder (scaledX, scaledY)) (worldFeeders world)
     newWorld = world { worldFeeders = newFeeders, worldNextFeederID = feederID + 1, worldRandomGen = randomGen''}
 
-closestPlantID :: Map PlantID Plant -> Point -> PlantID
+closestPlantID :: Plants -> Point -> PlantID
 closestPlantID plantMap feederLoc = fst $ minimumBy comparePlantDistances (Map.toList plantMap)
   where
     comparePlantDistances (plantIDA, plantA) (plantIDB, plantB) = compare (distanceToPlant plantA) (distanceToPlant plantB)
@@ -90,14 +90,14 @@ changesFromLifeEffects previousWorld feederID feeder seconds effects =
 
 changesFromBehavior ::  World -> FeederID -> Feeder -> TimeInterval -> Behavior -> [WorldChange]
 changesFromBehavior previousWorld feederID feeder seconds (Behavior behaviorName actions) = let
-    actionChanges = map (\action -> action previousWorld feederID feeder seconds) actions
+    actionChanges = map (\action -> action previousWorld feederID seconds) actions
     behaviorPersistenceChange = changeFromBehaviorPersistence feederID feeder behaviorName seconds
   in
     behaviorPersistenceChange : actionChanges
 
 changeFromBehaviorPersistence :: FeederID -> Feeder -> BehaviorName -> TimeInterval -> WorldChange
 changeFromBehaviorPersistence feederID feeder newBehaviorName seconds = (\worldAccum -> 
-    setBehaviorPersistence worldAccum feederID feeder newBehaviorName seconds)
+    setBehaviorPersistence worldAccum feederID newBehaviorName seconds)
 
 lifeEffects :: [Effect]
 lifeEffects = [getHungrier, getThirstier]
@@ -165,67 +165,68 @@ targetWater :: Action
 targetWater = targetPlantType Water
 
 targetPlantType :: PlantType -> Action
-targetPlantType plantType previousWorld feederID feeder seconds = let
-    oldTargetPlantID = (feederTargetPlantID feeder)
-    oldTargetPlant = (targetPlant (worldField previousWorld) feeder)
-    alreadyTargetingCorrectType = isOfType plantType (fromJust oldTargetPlant)
-  in 
-    (\worldAccum -> let
-        targetPlantStillExists = if (isJust oldTargetPlantID) 
-                                 then (worldField worldAccum) `contains` (fromJust oldTargetPlantID)
-                                 else False
-        newTargetPlantID = if (alreadyTargetingCorrectType && targetPlantStillExists)
-                           then oldTargetPlantID
-                           else Just $ closestPlantIDWithType plantType (untargetedPlants worldAccum) (feederLocation feeder)
-      in
-        setFeederTarget worldAccum feederID feeder newTargetPlantID
-    )
+targetPlantType plantType previousWorld feederID seconds = (\worldAccum -> let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    oldTargetPlantID = (feederTargetPlantID newFeeder)
+    oldTargetPlant = (targetPlant (worldField previousWorld) newFeeder)
+    alreadyTargetingCorrectType = if (isJust oldTargetPlant) then isOfType plantType (fromJust oldTargetPlant) else False
+    targetPlantStillExists = if (isJust oldTargetPlantID) 
+                             then (worldField worldAccum) `contains` (fromJust oldTargetPlantID)
+                             else False
+    newTargetPlantID = if (alreadyTargetingCorrectType && targetPlantStillExists)
+                       then oldTargetPlantID
+                       else Just $ closestPlantIDWithType plantType (untargetedPlants worldAccum) (feederLocation newFeeder)
+  in
+    setFeederTarget worldAccum feederID newFeeder newTargetPlantID
+  )
 
 moveTowardsTarget :: Action
-moveTowardsTarget previousWorld feederID feeder seconds = (\worldAccum -> let
-    movement = movementTowardsLocation (targetPlantLocation (worldField worldAccum) feeder) seconds feeder
+moveTowardsTarget previousWorld feederID seconds = (\worldAccum -> let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    movement = movementTowardsLocation (targetPlantLocation (worldField worldAccum) newFeeder) seconds newFeeder
+    newFeeder' = newFeeder { feederLocation = (feederLocation newFeeder) `add` movement }
+    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
   in
-    moveFeederBy worldAccum feederID feeder movement
+    worldAccum { worldFeeders = newFeeders }
   )
 
 eat :: Action
-eat previousWorld feederID feeder seconds = if (not $ isJust (feederTargetPlantID feeder))
-  then
-    id
-  else 
-    (\worldAccum -> let
-        foodEatenPerSecond = 0.25
-        amountToEat = if (distanceToTargetPlant (worldField worldAccum) feeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
-        plantID = (fromJust $ feederTargetPlantID feeder)
-        Just plant = (targetPlant (worldField worldAccum) feeder)
-      in
-        consume worldAccum feederID feeder plantID plant amountToEat
-    )
+eat previousWorld feederID seconds = (\worldAccum -> let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    foodEatenPerSecond = 0.25
+    amountToEat = if (distanceToTargetPlant (worldField worldAccum) newFeeder) < 2.5 then (foodEatenPerSecond * seconds) else 0
+    plantID = (fromJust $ feederTargetPlantID newFeeder)
+    plant = (targetPlant (worldField worldAccum) newFeeder)
+  in
+    case plant of
+        Nothing     -> worldAccum
+        Just plant' -> consume worldAccum feederID newFeeder plantID plant' amountToEat
+  )
 
 drink :: Action
-drink previousWorld feederID feeder seconds = if (not $ isJust (feederTargetPlantID feeder))
-  then
-    id
-  else
-    (\worldAccum -> let
-        waterDrankPerSecond = 0.35
-        amountToDrink = if (distanceToTargetPlant (worldField worldAccum) feeder) < 2.5 then (waterDrankPerSecond * seconds) else 0
-        plantID = (fromJust $ feederTargetPlantID feeder)
-        Just plant = (targetPlant (worldField worldAccum) feeder)
-      in
-        consume worldAccum feederID feeder plantID plant amountToDrink
-    )
+drink previousWorld feederID seconds = (\worldAccum -> let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    waterDrankPerSecond = 0.35
+    amountToDrink = if (distanceToTargetPlant (worldField worldAccum) newFeeder) < 2.5 then (waterDrankPerSecond * seconds) else 0
+    plantID = (fromJust $ feederTargetPlantID newFeeder)
+    plant = (targetPlant (worldField worldAccum) newFeeder)
+  in
+    case plant of
+        Nothing     -> worldAccum
+        Just plant' -> consume worldAccum feederID newFeeder plantID plant' amountToDrink
+  )
 
 --------------------------
 -- WORLD CHANGE HELPERS --
 --------------------------
 
 setFeederTarget :: World -> FeederID -> Feeder -> Maybe PlantID -> World
-setFeederTarget worldAccum feederID feeder newTargetPlantID = let
-    newFeeder = feeder { feederTargetPlantID = newTargetPlantID }
-    newFeeders = Map.insert feederID newFeeder (worldFeeders worldAccum)
+setFeederTarget worldAccum feederID oldFeeder newTargetPlantID = let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    newFeeder' = newFeeder { feederTargetPlantID = newTargetPlantID }
+    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
     oldTargetedPlants = worldTargetedPlants worldAccum
-    targetedPlantsWithoutOldTarget = case (feederTargetPlantID feeder) of
+    targetedPlantsWithoutOldTarget = case (feederTargetPlantID newFeeder') of
                                           Nothing               -> oldTargetedPlants
                                           Just oldTargetPlantID -> Map.delete oldTargetPlantID oldTargetedPlants
     newTargetedPlants = Map.insert (fromJust newTargetPlantID) feederID targetedPlantsWithoutOldTarget
@@ -233,26 +234,29 @@ setFeederTarget worldAccum feederID feeder newTargetPlantID = let
     worldAccum { worldFeeders = newFeeders, worldTargetedPlants = newTargetedPlants }
 
 moveFeederBy :: World -> FeederID -> Feeder -> Vector -> World
-moveFeederBy worldAccum feederID feeder movement = let
-    newFeeder = feeder { feederLocation = (feederLocation feeder) `add` movement }
-    newFeeders = Map.insert feederID newFeeder (worldFeeders worldAccum)
+moveFeederBy worldAccum feederID oldFeeder movement = let
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    newFeeder' = newFeeder { feederLocation = (feederLocation newFeeder) `add` movement }
+    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
   in
     worldAccum { worldFeeders = newFeeders }
 
 -- This only gets called if there is actually a plant to consume, so we can make some assumptions about functions that return Maybe plant
 consume :: World -> FeederID -> Feeder -> PlantID -> Plant -> Float -> World
-consume worldAccum feederID feeder plantID plant@(Plant plantType oldAmount location) amountToConsume = let
+consume worldAccum feederID oldFeeder plantID plant@(Plant plantType oldAmount location) amountToConsume = let
     consumedPlant = Plant plantType (clamp 0.0 1.0 (oldAmount - amountToConsume)) location
     newPlants = Map.insert plantID consumedPlant (fieldPlants (worldField worldAccum))
     newField = (worldField worldAccum) { fieldPlants = newPlants }
-    newFeeder = case plantType of
-                     Food  -> feeder { feederFood = clamp 0.0 1.0 ((feederFood feeder) + amountToConsume) }
-                     Water -> feeder { feederWater = clamp 0.0 1.0 ((feederWater feeder) + amountToConsume) }
-    newFeeders = Map.insert feederID newFeeder (worldFeeders worldAccum)
+    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    newFeeder' = case plantType of
+                     Food  -> newFeeder { feederFood = clamp 0.0 1.0 ((feederFood newFeeder) + amountToConsume) }
+                     Water -> newFeeder { feederWater = clamp 0.0 1.0 ((feederWater newFeeder) + amountToConsume) }
+    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
   in
     worldAccum { worldField = newField, worldFeeders = newFeeders }
 
-setBehaviorPersistence worldAccum feederID oldFeeder newBehaviorName seconds = let
+setBehaviorPersistence worldAccum feederID newBehaviorName seconds = let
+    oldFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     oldBehaviorName = feederBehaviorName oldFeeder
     oldBehaviorPersistencePreference = feederBehaviorPersistencePreference oldFeeder
     behaviorPersistencePreferenceFalloffRate = 0.8

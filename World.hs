@@ -11,7 +11,7 @@ createWorld :: StdGen -> (Int, Int) -> World
 createWorld randomGen size = let
     (field, randomGen') = randomField size randomGen
     worldWithPlants = initialWorld field randomGen'
-    worldWithFeeders = addRandomFeeders 10 worldWithPlants
+    worldWithFeeders = addRandomFeeders 1 worldWithPlants
   in
     worldWithFeeders
 
