@@ -255,6 +255,7 @@ consume worldAccum feederID oldFeeder plantID plant@(Plant plantType oldAmount l
   in
     worldAccum { worldField = newField, worldFeeders = newFeeders }
 
+setBehaviorPersistence :: World -> FeederID -> BehaviorName -> TimeInterval -> World
 setBehaviorPersistence worldAccum feederID newBehaviorName seconds = let
     oldFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     oldBehaviorName = feederBehaviorName oldFeeder
