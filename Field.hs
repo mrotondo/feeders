@@ -16,7 +16,7 @@ randomField :: RandomGen g => (Int, Int) -> g -> (Field, g)
 randomField (width, height) randomGen = let
     (randomPlantPercent, randomGen') = (random randomGen)
     plantPercent = 0.3 + 0.7 * (randomPlantPercent :: Float)
-    maxNumPlants = 0.003 * (fromIntegral width) * (fromIntegral height)
+    maxNumPlants = 0.006 * (fromIntegral width) * (fromIntegral height)
     numPlants = floor $ plantPercent * maxNumPlants
     emptyField = Field { fieldPlants         = Map.empty
                        , fieldWidth          = width
