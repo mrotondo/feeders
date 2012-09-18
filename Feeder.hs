@@ -223,12 +223,12 @@ drink previousWorld feederID seconds = (\worldAccum -> let
 setFeederTarget :: World -> FeederID -> Feeder -> Maybe PlantID -> World
 setFeederTarget worldAccum feederID oldFeeder newTargetPlantID = let
     newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
-    newFeeder' = newFeeder { feederTargetPlantID = newTargetPlantID }
-    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
     oldTargetedPlants = worldTargetedPlants worldAccum
-    targetedPlantsWithoutOldTarget = case (feederTargetPlantID newFeeder') of
+    targetedPlantsWithoutOldTarget = case (feederTargetPlantID newFeeder) of
                                           Nothing               -> oldTargetedPlants
                                           Just oldTargetPlantID -> Map.delete oldTargetPlantID oldTargetedPlants
+    newFeeder' = newFeeder { feederTargetPlantID = newTargetPlantID }
+    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
     newTargetedPlants = Map.insert (fromJust newTargetPlantID) feederID targetedPlantsWithoutOldTarget
   in
     worldAccum { worldFeeders = newFeeders, worldTargetedPlants = newTargetedPlants }
