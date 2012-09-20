@@ -12,24 +12,39 @@ plants = Map.elems . fieldPlants
 contains :: Field -> PlantID -> Bool
 field `contains` plantID = Map.member plantID (fieldPlants field)
 
-randomField :: RandomGen g => (Int, Int) -> g -> (Field, g)
-randomField (width, height) randomGen = let
+emptyField :: (Int, Int) -> Field
+emptyField (width, height) = Field { fieldPlants         = Map.empty
+                                   , fieldWidth          = width
+                                   , fieldHeight         = height
+                                   , fieldNextPlantID    = 1
+                                   , fieldNumberOfPlants = 0
+                                   }
+
+addRandomField :: World -> World
+addRandomField world = let
+    (field, randomGen') = populateField (worldField world) (worldRandomGen world)
+  in
+    world { worldField = field, worldRandomGen = randomGen' }
+
+populateField :: RandomGen g => Field -> g -> (Field, g)
+populateField field randomGen = let
+    (numPlants, randomGen') = randomNumPlants (fieldWidth field, fieldHeight field) randomGen
+    field' = field { fieldNumberOfPlants = numPlants }
+  in 
+    iterateField field' randomGen'
+
+randomNumPlants :: RandomGen g => (Int, Int) -> g -> (Int, g)
+randomNumPlants (width, height) randomGen = let
     (randomPlantPercent, randomGen') = (random randomGen)
     plantPercent = 0.3 + 0.7 * (randomPlantPercent :: Float)
     maxNumPlants = 0.006 * (fromIntegral width) * (fromIntegral height)
     numPlants = floor $ plantPercent * maxNumPlants
-    emptyField = Field { fieldPlants         = Map.empty
-                       , fieldWidth          = width
-                       , fieldHeight         = height
-                       , fieldNextPlantID    = 1
-                       , fieldNumberOfPlants = numPlants
-                       }
-    in addRandomPlants numPlants emptyField randomGen'
+  in
+    (numPlants, randomGen')
 
 iterateField :: RandomGen g => Field -> g -> (Field, g)
 iterateField field randomGen = let 
-    oldPlants = fieldPlants field
-    stillAlivePlants = Map.filter (\(Plant plantType amount location) -> amount > 0.0001) oldPlants
+    stillAlivePlants = Map.filter (\(Plant plantType amount location) -> amount > 0.0001) (fieldPlants field)
     numberOfPlantsToCreate = (fieldNumberOfPlants field) - (Map.size stillAlivePlants)
     in addRandomPlants numberOfPlantsToCreate (field { fieldPlants = stillAlivePlants}) randomGen
 

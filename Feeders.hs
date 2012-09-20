@@ -55,7 +55,7 @@ handleEvent (EventMotion newMouseLocation) (AppState world oldMouseLocation) = A
 
 iterateAppState :: TimeInterval -> AppState -> AppState
 iterateAppState seconds (AppState world mouseLocation) = let 
-    iteratedWorld = iterateWorld seconds world
+    iteratedWorld = iterateWorld (seconds * 10) world
   in
     AppState iteratedWorld mouseLocation
 

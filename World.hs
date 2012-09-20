@@ -9,15 +9,18 @@ import Geometry
 
 createWorld :: StdGen -> (Int, Int) -> World
 createWorld randomGen size = let
-    (field, randomGen') = randomField size randomGen
-    worldWithPlants = initialWorld field randomGen'
-    worldWithFeeders = addRandomFeeders 500 worldWithPlants
+    world = initialWorld randomGen size
+    worldWithField = addRandomField world
+    worldWithFeeders = addRandomFeeders 100 worldWithField
+    --worldWithPredators = addRandomPredators 1 worldWithFeeders
   in
     worldWithFeeders
 
-initialWorld field randomGen = World { worldFeeders = empty
-                                     , worldNextFeederID = 1
-                                     , worldField = field
-                                     , worldRandomGen = randomGen
-                                     , worldTargetedPlants = empty
-                                     }
+initialWorld randomGen size = World { worldFeeders = empty
+                                    , worldNextFeederID = 1
+                                    , worldPredators = empty
+                                    , worldNextPredatorID = 1
+                                    , worldField = emptyField size
+                                    , worldRandomGen = randomGen
+                                    , worldTargetedPlants = empty
+                                    }
