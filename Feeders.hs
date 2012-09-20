@@ -24,7 +24,7 @@ initialAppState world = AppState world (0, 0)
 -- Graphics 
 
 drawWorld :: AppState -> Picture
-drawWorld (AppState world mouseLocation) = Pictures [drawField (worldField world), drawFeeders (worldFeeders world)]
+drawWorld (AppState world mouseLocation) = Pictures [drawField (worldField world), drawFeeders (worldFeeders world), drawPredators (worldPredators world)]
 
 drawField :: Field -> Picture
 drawField field = Pictures $ map drawPlant (plants field)
@@ -46,6 +46,14 @@ drawFeeder feeder = let
                                   , Color green $ ThickArc 180 (180 + (180 * (feederFood feeder))) 10 5
                                   , Color (dark cyan) $ ThickArc 180 (180 - (180 * (feederWater feeder))) 10 5
                                   ]
+
+drawPredators :: Predators -> Picture
+drawPredators predators = Pictures $ map drawPredator (Map.elems predators)
+
+drawPredator :: Predator -> Picture
+drawPredator predator = let 
+    (x, y) = predatorLocation predator
+    in Translate x y $ Color (bright red) $ ThickCircle 20 20
 
 -- Iteration
 

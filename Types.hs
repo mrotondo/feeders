@@ -28,7 +28,7 @@ type WorldChange = World -> World
 type Predators = Map PredatorID Predator
 type PredatorID = Int
 data Predator = Predator { predatorLocation       :: Point
-                         , predatorTargetFeederID :: FeederID
+                         , predatorTargetFeederID :: Maybe FeederID
                          }
 
 type Feeders = Map FeederID Feeder
