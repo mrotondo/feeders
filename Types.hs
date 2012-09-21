@@ -1,6 +1,8 @@
+{-# LANGUAGE ImpredicativeTypes #-}
+
 module Types where
 import Graphics.Gloss
-import Data.Map
+import Data.Map (Map)
 import Geometry
 import System.Random (StdGen)
 
@@ -15,24 +17,25 @@ data World = World { worldFeeders         :: Feeders
                    , worldTargetedPlants  :: Map PlantID FeederID
                    }
 
+type ActorID = Int
 type TimeInterval = Float
 type Effect = World -> FeederID -> Feeder -> TimeInterval -> WorldChange
 type Urgency = Float
-type DesireArgs = (World, Feeder) -- (packed for passing via (map $)) previous world state, feeder being operated on
-type Desire = DesireArgs -> (Urgency, Behavior)
+type FeederDesire = World -> Feeder -> (Urgency, Behavior)
+type PredatorDesire = World -> Predator -> (Urgency, Behavior)
 data Behavior = Behavior BehaviorName [Action]
-data BehaviorName = DoingNothing | Eating | Drinking deriving (Show, Eq)
-type Action = World -> FeederID -> TimeInterval -> WorldChange -- previous world state, feeder acting
+data BehaviorName = DoingNothing | Eating | Drinking | Killing deriving (Show, Eq)
+type Action = World -> ActorID -> TimeInterval -> WorldChange -- previous world state, feeder acting
 type WorldChange = World -> World
 
 type Predators = Map PredatorID Predator
-type PredatorID = Int
+type PredatorID = ActorID
 data Predator = Predator { predatorLocation       :: Point
                          , predatorTargetFeederID :: Maybe FeederID
-                         }
+                         } deriving (Show)
 
 type Feeders = Map FeederID Feeder
-type FeederID = Int
+type FeederID = ActorID
 data Feeder = Feeder { feederLocation                       :: Point
                      , feederFood                           :: Float
                      , feederWater                          :: Float
@@ -40,7 +43,7 @@ data Feeder = Feeder { feederLocation                       :: Point
                      --, feederFleeingPredatorID              :: Maybe PredatorID
                      , feederBehaviorName                   :: BehaviorName
                      , feederBehaviorPersistencePreference  :: Float
-                     }
+                     } deriving (Show)
 
 data Field = Field { fieldPlants          :: Plants
                    , fieldWidth           :: Int 

@@ -3,6 +3,7 @@ import Types
 import World
 import Feeder
 import Field
+import Predator
 import Plant
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
@@ -73,5 +74,7 @@ iterateWorld seconds world = let
     world' = Map.foldl (\worldAccum changesFromAction -> foldl (\worldAccum' change -> change worldAccum') worldAccum changesFromAction) world changesFromFeeders
     (iteratedField, newGen) = iterateField (worldField world') (worldRandomGen world')
     world'' = world' { worldField = iteratedField, worldRandomGen = newGen }
+    changesFromPredators = Map.mapWithKey (\predatorID predator -> changesFromPredator world'' predatorID predator seconds) (worldPredators world'')
+    world''' = Map.foldl (\worldAccum changesFromAction -> foldl (\worldAccum' change -> change worldAccum') worldAccum changesFromAction) world'' changesFromPredators
   in 
-    world''
+    world'''

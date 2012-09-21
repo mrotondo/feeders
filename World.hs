@@ -13,7 +13,7 @@ createWorld randomGen size = let
     world = initialWorld randomGen size
     worldWithField = addRandomField world
     worldWithFeeders = addRandomFeeders 100 worldWithField
-    worldWithPredators = addRandomPredators 5 worldWithFeeders
+    worldWithPredators = addRandomPredators 1 worldWithFeeders
   in
     worldWithPredators
 

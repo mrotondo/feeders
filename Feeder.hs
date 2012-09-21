@@ -1,3 +1,5 @@
+{-# LANGUAGE ImpredicativeTypes #-}
+
 module Feeder where
 import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
@@ -68,12 +70,12 @@ vectorToTargetPlant field feeder = difference (feederLocation feeder) (targetPla
 distanceToTargetPlant :: Field -> Feeder -> Float
 distanceToTargetPlant field feeder = magV $ vectorToTargetPlant field feeder
 
-movementTowardsLocation :: Point -> Float -> Feeder -> Vector
+movementTowardsLocation :: Point -> TimeInterval -> Feeder -> Vector
 movementTowardsLocation targetLocation seconds feeder = movement
   where
-    speedPerSecond = 1.8
+    speedPerSecond = 5.8
     vectorToTargetLocation = difference targetLocation (feederLocation feeder)
-    movement = mulSV (speedPerSecond * seconds) vectorToTargetLocation
+    movement = mulSV (speedPerSecond * seconds) (normaliseV vectorToTargetLocation)
 
 changesFromFeeder :: World -> FeederID -> Feeder -> TimeInterval -> [WorldChange]
 changesFromFeeder previousWorld feederID feeder seconds = let
@@ -129,16 +131,16 @@ getThirstier previousWorld feederID feeder seconds = (\worldAccum -> let
   )
 
 generatePossibleBehaviors :: World -> Feeder -> [(Urgency, Behavior)]
-generatePossibleBehaviors previousWorld feeder = map ($ (previousWorld, feeder)) desires 
+generatePossibleBehaviors previousWorld feeder = map (\desire -> desire previousWorld feeder) desires
 
-desires :: [Desire]
+desires :: [FeederDesire]
 desires = [hunger, thirst]
 
-hunger :: Desire
-hunger (previousWorld, feeder) = (foodUrgency feeder, Behavior Eating [targetFood, moveTowardsTarget, eat])
+hunger :: FeederDesire
+hunger previousWorld feeder = (foodUrgency feeder, Behavior Eating [targetFood, moveTowardsTarget, eat])
 
-thirst :: Desire
-thirst (previousWorld, feeder) = (thirstUrgency feeder, Behavior Drinking [targetWater, moveTowardsTarget, drink])
+thirst :: FeederDesire
+thirst previousWorld feeder = (thirstUrgency feeder, Behavior Drinking [targetWater, moveTowardsTarget, drink])
 
 foodUrgency :: Feeder -> Urgency
 foodUrgency feeder = let
