@@ -15,6 +15,7 @@ data World = World { worldFeeders         :: Feeders
                    , worldField           :: Field
                    , worldRandomGen       :: StdGen
                    , worldTargetedPlants  :: Map PlantID FeederID
+                   , worldTargetedFeeders :: Map FeederID PredatorID
                    }
 
 type ActorID = Int

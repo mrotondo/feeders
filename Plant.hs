@@ -34,5 +34,10 @@ randomPlant gen (width, height) = let
 isOfType :: PlantType -> Plant -> Bool
 isOfType plantTypeToCompare (Plant plantType _ _) = plantType == plantTypeToCompare
 
+untargetedPlants :: World -> Plants
+untargetedPlants world = Map.filterWithKey (\plantID _ -> not (isTargeted world plantID)) plants
+  where
+    plants = (fieldPlants (worldField world))
+
 isTargeted :: World -> PlantID -> Bool
 isTargeted world plantID = Map.member plantID (worldTargetedPlants world)

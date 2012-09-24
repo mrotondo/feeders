@@ -12,8 +12,8 @@ createWorld :: StdGen -> (Int, Int) -> World
 createWorld randomGen size = let
     world = initialWorld randomGen size
     worldWithField = addRandomField world
-    worldWithFeeders = addRandomFeeders 100 worldWithField
-    worldWithPredators = addRandomPredators 1 worldWithFeeders
+    worldWithFeeders = addRandomFeeders 200 worldWithField
+    worldWithPredators = addRandomPredators 10 worldWithFeeders
   in
     worldWithPredators
 
@@ -24,4 +24,5 @@ initialWorld randomGen size = World { worldFeeders = empty
                                     , worldField = emptyField size
                                     , worldRandomGen = randomGen
                                     , worldTargetedPlants = empty
+                                    , worldTargetedFeeders = empty
                                     }

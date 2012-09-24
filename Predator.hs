@@ -2,6 +2,7 @@ module Predator where
 import Graphics.Gloss
 import Graphics.Gloss.Data.Vector
 import Types
+import Feeder (untargetedFeeders)
 import Geometry
 import System.Random (random)
 import qualified Data.Map as Map
@@ -70,7 +71,7 @@ targetFeeder previousWorld predatorID seconds = (\worldAccum -> let
     oldTargetFeederStillExists = Map.member (fromJust oldTargetFeederID) (worldFeeders worldAccum)
     newTargetFeederID = if ((isJust oldTargetFeederID) && oldTargetFeederStillExists)
                         then oldTargetFeederID
-                        else Just $ closestFeederID (worldFeeders worldAccum) (predatorLocation predator)
+                        else Just $ closestFeederID (untargetedFeeders worldAccum) (predatorLocation predator)
   in
     setPredatorTarget worldAccum predatorID predator newTargetFeederID
   )
@@ -83,10 +84,15 @@ closestFeederID feederMap predatorLoc = fst $ minimumBy compareFeederDistances (
 
 setPredatorTarget :: World -> PredatorID -> Predator -> Maybe FeederID -> World
 setPredatorTarget worldAccum predatorID predator newTargetFeederID = let
+    oldTargetedFeeders = worldTargetedFeeders worldAccum
+    targetedFeedersWithoutOldTarget = case (predatorTargetFeederID predator) of
+                                           Nothing                -> oldTargetedFeeders
+                                           Just oldTargetFeederID -> Map.delete oldTargetFeederID oldTargetedFeeders
     newPredator = predator { predatorTargetFeederID = newTargetFeederID }
     newPredators = Map.insert predatorID newPredator (worldPredators worldAccum)
+    newTargetedFeeders = Map.insert (fromJust newTargetFeederID) predatorID targetedFeedersWithoutOldTarget
   in
-    worldAccum { worldPredators = newPredators }
+    worldAccum { worldPredators = newPredators, worldTargetedFeeders = newTargetedFeeders }
 
 moveTowardsTarget :: Action
 moveTowardsTarget previousWorld predatorID seconds = (\worldAccum -> let

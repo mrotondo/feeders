@@ -73,7 +73,7 @@ distanceToTargetPlant field feeder = magV $ vectorToTargetPlant field feeder
 movementTowardsLocation :: Point -> TimeInterval -> Feeder -> Vector
 movementTowardsLocation targetLocation seconds feeder = movement
   where
-    speedPerSecond = 5.8
+    speedPerSecond = 8.0
     vectorToTargetLocation = difference targetLocation (feederLocation feeder)
     movement = mulSV (speedPerSecond * seconds) (normaliseV vectorToTargetLocation)
 
@@ -272,3 +272,9 @@ setBehaviorPersistence worldAccum feederID newBehaviorName seconds = let
     newFeeders = Map.insert feederID feederWithNewBehaviorName (worldFeeders worldAccum)
   in
     worldAccum { worldFeeders = newFeeders }
+
+untargetedFeeders :: World -> Feeders
+untargetedFeeders world = Map.filterWithKey (\feederID _ -> not (Feeder.isTargeted world feederID)) (worldFeeders world)
+
+isTargeted :: World -> FeederID -> Bool
+isTargeted world feederID = Map.member feederID (worldTargetedFeeders world)

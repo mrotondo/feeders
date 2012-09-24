@@ -59,8 +59,3 @@ addRandomPlants numPlants field randomGen = case numPlants of
     newField = field { fieldPlants = Map.insert plantID plant oldPlants
                      , fieldNextPlantID = plantID + 1
                      }
-
-untargetedPlants :: World -> Plants
-untargetedPlants world = Map.filterWithKey (\plantID _ -> not (isTargeted world plantID)) plants
-  where
-    plants = (fieldPlants (worldField world))
