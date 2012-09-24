@@ -68,8 +68,9 @@ targetFeeder :: Action
 targetFeeder previousWorld predatorID seconds = (\worldAccum -> let
     predator = fromJust $ Map.lookup predatorID (worldPredators worldAccum)
     oldTargetFeederID = (predatorTargetFeederID predator)
-    oldTargetFeederStillExists = Map.member (fromJust oldTargetFeederID) (worldFeeders worldAccum)
-    newTargetFeederID = if ((isJust oldTargetFeederID) && oldTargetFeederStillExists)
+    oldTargetFeederStillExists = Map.member (fromJust oldTargetFeederID) (worldFeeders worldAccum) -- lazy!
+    anotherFeederIsCloser = (fromJust $ distanceToTarget worldAccum predator) > 1.5 * (distanceToClosestFeeder worldAccum predator)
+    newTargetFeederID = if (isJust oldTargetFeederID) && oldTargetFeederStillExists && (not anotherFeederIsCloser)
                         then oldTargetFeederID
                         else Just $ closestFeederID (untargetedFeeders worldAccum) (predatorLocation predator)
   in
@@ -81,6 +82,20 @@ closestFeederID feederMap predatorLoc = fst $ minimumBy compareFeederDistances (
   where
     compareFeederDistances (feederIDA, feederA) (feederIDB, feederB) = compare (distanceToFeeder feederA) (distanceToFeeder feederB)
     distanceToFeeder feeder = distance predatorLoc (feederLocation feeder)
+
+distanceToTarget :: World -> Predator -> Maybe Float
+distanceToTarget world predator = do
+    targetFeederID <- predatorTargetFeederID predator
+    targetFeeder <- Map.lookup targetFeederID (worldFeeders world)
+    return $ distance (predatorLocation predator) (feederLocation targetFeeder)
+
+distanceToClosestFeeder :: World -> Predator -> Float
+distanceToClosestFeeder world predator = let
+    predatorLoc = (predatorLocation predator)
+    feederID = closestFeederID (worldFeeders world) predatorLoc
+    feeder = fromJust $ Map.lookup feederID (worldFeeders world)
+  in
+    distance predatorLoc (feederLocation feeder)
 
 setPredatorTarget :: World -> PredatorID -> Predator -> Maybe FeederID -> World
 setPredatorTarget worldAccum predatorID predator newTargetFeederID = let
