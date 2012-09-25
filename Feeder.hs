@@ -15,6 +15,7 @@ import System.Random (RandomGen, random)
 import Data.List (minimumBy, sortBy)
 import Data.Function (on)
 import Data.Maybe (fromJust, isJust)
+import Debug.Trace
 
 newFeeder :: Point -> Feeder
 newFeeder loc = Feeder { feederLocation = loc
@@ -73,9 +74,13 @@ distanceToTargetPlant field feeder = magV $ vectorToTargetPlant field feeder
 movementTowardsLocation :: Point -> TimeInterval -> Feeder -> Vector
 movementTowardsLocation targetLocation seconds feeder = movement
   where
-    speedPerSecond = 8.0
+    speedPerSecond = 20.0
     vectorToTargetLocation = difference targetLocation (feederLocation feeder)
-    movement = mulSV (speedPerSecond * seconds) (normaliseV vectorToTargetLocation)
+    distanceToMove = min (magV vectorToTargetLocation) (speedPerSecond * seconds)
+    direction = case distanceToMove of
+                0 -> (0, 0)
+                _ -> (normaliseV vectorToTargetLocation)
+    movement = mulSV distanceToMove direction
 
 changesFromFeeder :: World -> FeederID -> Feeder -> TimeInterval -> [WorldChange]
 changesFromFeeder previousWorld feederID feeder seconds = let
@@ -184,10 +189,11 @@ targetPlantType plantType previousWorld feederID seconds = (\worldAccum -> let
 
 moveTowardsTarget :: Action
 moveTowardsTarget previousWorld feederID seconds = (\worldAccum -> let
-    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
-    movement = movementTowardsLocation (targetPlantLocation (worldField worldAccum) newFeeder) seconds newFeeder
-    newFeeder' = newFeeder { feederLocation = (feederLocation newFeeder) `add` movement }
-    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
+    feeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    movement = movementTowardsLocation (targetPlantLocation (worldField worldAccum) feeder) seconds feeder
+    newLocation = (feederLocation feeder) `add` movement
+    feeder' = feeder { feederLocation = newLocation }
+    newFeeders = Map.insert feederID feeder' (worldFeeders worldAccum)
   in
     worldAccum { worldFeeders = newFeeders }
   )
@@ -234,14 +240,6 @@ setFeederTarget worldAccum feederID oldFeeder newTargetPlantID = let
     newTargetedPlants = Map.insert (fromJust newTargetPlantID) feederID targetedPlantsWithoutOldTarget
   in
     worldAccum { worldFeeders = newFeeders, worldTargetedPlants = newTargetedPlants }
-
-moveFeederBy :: World -> FeederID -> Feeder -> Vector -> World
-moveFeederBy worldAccum feederID oldFeeder movement = let
-    newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
-    newFeeder' = newFeeder { feederLocation = (feederLocation newFeeder) `add` movement }
-    newFeeders = Map.insert feederID newFeeder' (worldFeeders worldAccum)
-  in
-    worldAccum { worldFeeders = newFeeders }
 
 -- This only gets called if there is actually a plant to consume, so we can make some assumptions about functions that return Maybe plant
 consume :: World -> FeederID -> Feeder -> PlantID -> Plant -> Float -> World
