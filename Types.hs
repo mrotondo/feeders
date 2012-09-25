@@ -25,7 +25,7 @@ type Urgency = Float
 type FeederDesire = World -> Feeder -> (Urgency, Behavior)
 type PredatorDesire = World -> Predator -> (Urgency, Behavior)
 data Behavior = Behavior BehaviorName [Action]
-data BehaviorName = DoingNothing | Eating | Drinking | Killing deriving (Show, Eq)
+data BehaviorName = DoingNothing | Eating | Drinking | Killing | Fleeing deriving (Show, Eq)
 type Action = World -> ActorID -> TimeInterval -> WorldChange -- previous world state, feeder acting
 type WorldChange = World -> World
 
@@ -41,7 +41,7 @@ data Feeder = Feeder { feederLocation                       :: Point
                      , feederFood                           :: Float
                      , feederWater                          :: Float
                      , feederTargetPlantID                  :: Maybe PlantID
-                     --, feederFleeingPredatorID              :: Maybe PredatorID
+                     , feederThreatDirection                :: Vector
                      , feederBehaviorName                   :: BehaviorName
                      , feederBehaviorPersistencePreference  :: Float
                      } deriving (Show)

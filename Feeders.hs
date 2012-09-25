@@ -5,8 +5,10 @@ import Feeder
 import Field
 import Predator
 import Plant
+import Geometry
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game
+import Graphics.Gloss.Data.Vector
 import System.Random (randomIO, mkStdGen)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -43,9 +45,10 @@ drawFeeders feeders = Pictures $ map drawFeeder (Map.elems feeders)
 drawFeeder :: Feeder -> Picture
 drawFeeder feeder = let 
     (x, y) = feederLocation feeder
-    in Translate x y $ Pictures $ [ Color (dark $ dark red) $ ThickCircle 10 5
+    in Translate x y $ Pictures $ [ Color (dark $ dark red) $ ThickCircle 10 10
                                   , Color green $ ThickArc 180 (180 + (180 * (feederFood feeder))) 10 5
                                   , Color (dark cyan) $ ThickArc 180 (180 - (180 * (feederWater feeder))) 10 5
+                                  , Color white $ Line [(0, 0), mulSV 20.0 (feederThreatDirection feeder)]
                                   ]
 
 drawPredators :: Predators -> Picture

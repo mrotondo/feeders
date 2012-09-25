@@ -22,6 +22,7 @@ newFeeder loc = Feeder { feederLocation = loc
                        , feederFood = 1.0
                        , feederWater = 1.0
                        , feederTargetPlantID = Nothing
+                       , feederThreatDirection = (0, 0)
                        , feederBehaviorName = DoingNothing
                        , feederBehaviorPersistencePreference = 0.0
                        }
@@ -82,6 +83,13 @@ movementTowardsLocation targetLocation seconds feeder = movement
                 _ -> (normaliseV vectorToTargetLocation)
     movement = mulSV distanceToMove direction
 
+movementInDirection :: Vector -> TimeInterval -> Feeder -> Vector
+movementInDirection direction seconds feeder = movement
+  where
+    speedPerSecond = 20.0
+    distanceToMove = speedPerSecond * seconds
+    movement = mulSV distanceToMove direction
+
 changesFromFeeder :: World -> FeederID -> Feeder -> TimeInterval -> [WorldChange]
 changesFromFeeder previousWorld feederID feeder seconds = let
     urgencyBehaviorTuples = generatePossibleBehaviors previousWorld feeder
@@ -113,7 +121,7 @@ getHungrier :: Effect
 getHungrier previousWorld feederID feeder seconds = (\worldAccum -> let
     newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     oldFeederFood = (feederFood newFeeder)
-    hungerPerSecond = 0.09
+    hungerPerSecond = 0.009
     newHunger = hungerPerSecond * seconds
     newFeederFood = oldFeederFood - newHunger
     hungrierFeeder = newFeeder { feederFood = clamp 0.0 1.0 newFeederFood }
@@ -126,7 +134,7 @@ getThirstier :: Effect
 getThirstier previousWorld feederID feeder seconds = (\worldAccum -> let
     newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     oldFeederWater = (feederWater newFeeder)
-    thirstPerSecond = 0.02
+    thirstPerSecond = 0.002
     newThirst = thirstPerSecond * seconds
     newFeederWater = oldFeederWater - newThirst
     thirstierFeeder = newFeeder { feederWater = clamp 0.0 1.0 newFeederWater }
@@ -139,13 +147,16 @@ generatePossibleBehaviors :: World -> Feeder -> [(Urgency, Behavior)]
 generatePossibleBehaviors previousWorld feeder = map (\desire -> desire previousWorld feeder) desires
 
 desires :: [FeederDesire]
-desires = [hunger, thirst]
+desires = [hunger, thirst, safety]
 
 hunger :: FeederDesire
 hunger previousWorld feeder = (foodUrgency feeder, Behavior Eating [targetFood, moveTowardsTarget, eat])
 
 thirst :: FeederDesire
 thirst previousWorld feeder = (thirstUrgency feeder, Behavior Drinking [targetWater, moveTowardsTarget, drink])
+
+safety :: FeederDesire
+safety previousWorld feeder = (safetyUrgency previousWorld feeder, Behavior Fleeing [stopTargeting, determineThreatDirection, moveAwayFromThreat])
 
 foodUrgency :: Feeder -> Urgency
 foodUrgency feeder = let
@@ -164,6 +175,57 @@ thirstUrgency feeder = let
                                 False -> 0.0
   in
     baseUrgency + persistencePreference
+
+safetyUrgency :: World -> Feeder -> Urgency
+safetyUrgency world feeder = Map.foldl' (+) 0 $ Map.map (threatFromPredator world feeder) (worldPredators world)
+
+threatFromPredator :: World -> Feeder -> Predator -> Float
+threatFromPredator world feeder predator = let
+    dist = distance (feederLocation feeder) (predatorLocation predator)
+    maxDist = sqrt $ fromIntegral (((fieldWidth $ worldField world) ^ 2) + ((fieldHeight $ worldField world) ^ 2))
+    distPercent = dist / maxDist
+    threat = if distPercent < 0.25 then 1.0 - (distPercent ** 0.001) else 0.0
+  in
+    threat
+
+stopTargeting :: Action
+stopTargeting previousWorld feederID seconds = (\worldAccum -> let
+    feeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    targetedPlants' = case (feederTargetPlantID feeder) of
+                           Just plantID -> Map.delete plantID (worldTargetedPlants worldAccum)
+                           Nothing      -> (worldTargetedPlants worldAccum)
+    feeder' = feeder { feederTargetPlantID = Nothing }
+    feeders' = Map.insert feederID feeder' (worldFeeders worldAccum)
+  in
+    worldAccum { worldFeeders = feeders', worldTargetedPlants = targetedPlants'}
+  )
+
+determineThreatDirection :: Action
+determineThreatDirection previousWorld feederID seconds = (\worldAccum -> let
+    feeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    (totalThreat, weightedLocationSum) = Map.foldl (\(threatAccum, locationAccum) predator -> let
+        threat = threatFromPredator worldAccum feeder predator
+        weightedLocation = mulSV threat (predatorLocation predator)
+      in
+        (threatAccum + threat, locationAccum `add` weightedLocation)
+      ) (0, (0, 0)) (worldPredators worldAccum)
+    weightedCentroid = mulSV (1.0 / totalThreat) weightedLocationSum
+    direction = normaliseV $ difference weightedCentroid (feederLocation feeder)
+    feeder' = feeder { feederThreatDirection = direction }
+    feeders' = Map.insert feederID feeder' (worldFeeders worldAccum)
+  in
+    worldAccum { worldFeeders = feeders' })
+
+moveAwayFromThreat :: Action
+moveAwayFromThreat previousWorld feederID seconds = (\worldAccum -> let
+    feeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
+    movement = movementInDirection (mulSV (-1.0) (feederThreatDirection feeder)) seconds feeder
+    newLocation = (feederLocation feeder) `add` movement
+    feeder' = feeder { feederLocation = newLocation }
+    feeders' = Map.insert feederID feeder' (worldFeeders worldAccum)
+  in
+    worldAccum { worldFeeders = feeders' }
+  )
 
 targetFood :: Action
 targetFood = targetPlantType Food
@@ -260,7 +322,7 @@ setBehaviorPersistence worldAccum feederID newBehaviorName seconds = let
     oldFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     oldBehaviorName = feederBehaviorName oldFeeder
     oldBehaviorPersistencePreference = feederBehaviorPersistencePreference oldFeeder
-    behaviorPersistencePreferenceFalloffRate = 0.8
+    behaviorPersistencePreferenceFalloffRate = 0.1
     newFeeder = fromJust $ Map.lookup feederID (worldFeeders worldAccum)
     feederWithNewBehaviorName = case (oldBehaviorName == newBehaviorName) of
         True  -> newFeeder { feederBehaviorPersistencePreference = oldBehaviorPersistencePreference * (behaviorPersistencePreferenceFalloffRate ** seconds) }
