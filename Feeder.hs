@@ -184,7 +184,7 @@ threatFromPredator world feeder predator = let
     dist = distance (feederLocation feeder) (predatorLocation predator)
     maxDist = sqrt $ fromIntegral (((fieldWidth $ worldField world) ^ 2) + ((fieldHeight $ worldField world) ^ 2))
     distPercent = dist / maxDist
-    threat = if distPercent < 0.25 then 1.0 - (distPercent ** 0.001) else 0.0
+    threat = if distPercent < 0.2 then 1.0 - (distPercent ** 0.001) else 0.0
   in
     threat
 
